@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # METIS 
 
 METIS is a set of serial programs for partitioning graphs, partitioning finite element meshes, 
@@ -89,3 +90,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
+=======
+# METIS-with-RG-MK
+New version of metis with refined gain for multilevel kway partitioning
+>>>>>>> fb8af5791ac8c1eeacf482b450a5c0d71a7528f1
