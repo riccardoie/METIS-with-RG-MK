@@ -93,4 +93,3 @@ Unless required by applicable law or agreed to in writing, software distributed 
 =======
 # METIS-with-RG-MK
 New version of metis with refined gain for multilevel kway partitioning
->>>>>>> fb8af5791ac8c1eeacf482b450a5c0d71a7528f1

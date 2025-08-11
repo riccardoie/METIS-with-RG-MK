@@ -51,7 +51,6 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-<<<<<<< HEAD
 # GK things
 build/
 graphs/*.part.*
@@ -61,7 +60,5 @@ graphs/*.npart.*
 GKlib
 .svn/
 
-=======
 # debug information files
 *.dwo
->>>>>>> fb8af5791ac8c1eeacf482b450a5c0d71a7528f1
