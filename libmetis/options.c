@@ -187,6 +187,9 @@ void PrintCtrl(ctrl_t *ctrl)
     case METIS_OBJTYPE_NODE:
       printf("METIS_OBJTYPE_NODE\n");
       break;
+    case METIS_OBJTYPE_RGMK:
+      printf("METIS_OBJTYPE_RGMK\n");
+      break;
     default:
       printf("Unknown!\n");
   }
