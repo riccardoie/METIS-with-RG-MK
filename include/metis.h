@@ -352,7 +352,7 @@ typedef enum {
 typedef enum {
   METIS_OBJTYPE_CUT,
   METIS_OBJTYPE_VOL,
-  METIS_OBJTYPE_RGMK,            /*FUTURE NEW TYPE OF OBJECTIVE*/
+  METIS_OBJTYPE_RGMK,            /* NEW TYPE OF OBJECTIVE */
   METIS_OBJTYPE_NODE
 } mobjtype_et;
 

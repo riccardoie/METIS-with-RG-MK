@@ -310,7 +310,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
         ckrinfo_t *myrinfo;
         cnbr_t *mynbrs;
         
-        printf("\n--------------------GOT INSIDE THE NEW OBJECTIVE!!--------------------\n");
+        printf("\n--------------------GOT INSIDE THE NEW OBJECTIVE!!(test)--------------------\n");
         memset(graph->ckrinfo, 0, sizeof(ckrinfo_t)*nvtxs);
         cnbrpoolReset(ctrl);
 
