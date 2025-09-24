@@ -167,7 +167,6 @@ idx_t MlevelKWayPartitioning(ctrl_t *ctrl, graph_t *graph, idx_t *part)
   }
 
   FreeGraph(&graph);
-
   return bestobj;
 }
 
