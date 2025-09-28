@@ -2262,7 +2262,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   ffactor = 0.0;
   WCOREPUSH;
 
-  printf("\n\n-----------------NEW REFINEMENT-------------\n");
+  printf("\n-----------------NEW REFINEMENT (%d)-------------\n", graph->nvtxs);
   
   /* Link the graph fields */
   nvtxs  = graph->nvtxs;
@@ -2282,7 +2282,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   /* Setup the weight intervals of the various subdomains */
   minpwgts = iwspacemalloc(ctrl, nparts);
   maxpwgts = iwspacemalloc(ctrl, nparts);
-
+  
   if (omode == OMODE_BALANCE)
     ubfactor = ctrl->ubfactors[0];
   else
@@ -2310,7 +2310,6 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
     doms    = iset(nparts, 0, ctrl->pvec1);
   }
 
-
   /* Setup updptr, updind like boundary info to keep track of the vertices whose
      vstatus's need to be reset at the end of the inner iteration */
   vstatus = iset(nvtxs, VPQSTATUS_NOTPRESENT, iwspacemalloc(ctrl, nvtxs));
@@ -2336,12 +2335,13 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
      printf("\n");
   }
 
-  queue = rpqCreate(nvtxs);
+  queue = rpqCreate(nvtxs);  
   partition_cutq = rpqCreate(nparts);
-
-  for(int pid = 0; pid < nparts; pid++) {
-    rpqInsert(partition_cutq, pid, 0);
-  }
+   
+    for(int pid = 0; pid < nparts; pid++) {
+        rpqInsert(partition_cutq, pid, 0);
+    
+    }
 
   /*=====================================================================
   * The top-level refinement loop 
@@ -2377,14 +2377,16 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
                - graph->ckrinfo[i].id;
       rpqInsert(queue, i, rgain);
       
-	//   if(pass == 0)	
+	  if(pass == 0)
+      {
     	rpqUpdate(partition_cutq, where[i], rpqSeeKey(partition_cutq, where[i]) + graph->ckrinfo[i].ed);
-      
+      }
 		vstatus[i] = VPQSTATUS_PRESENT;
-      ListInsert(nupd, updind, updptr, i);
+      ListInsert(nupd, updind, updptr, i); 
     }
 
-    printf("\n TOP cut partition is : %d; With an ed of %f (%d)", rpqSeeTopVal(partition_cutq), rpqSeeTopKey(partition_cutq), nbnd);
+    printf("\nTOP cut partition before refinement is : %d; With an ed of %f(%d)", rpqSeeTopVal(partition_cutq), rpqSeeTopKey(partition_cutq), nbnd);
+
 
     /* Start extracting vertices from the queue and try to move them */
     for (nmoved=0, iii=0;;iii++) {
@@ -2443,12 +2445,16 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         gain = mynbrs[k].ed-myrinfo->id;
 
         // By moving a node the destination loses cut while the original partition gains cut.
-        rpqUpdate(partition_cutq, to, rpqSeeKey(partition_cutq, to) - mynbrs[k].ed);
-        rpqUpdate(partition_cutq, from, rpqSeeKey(partition_cutq, from) + myrinfo->id);
-
-		printf("\n Changes to %d - %d and %d + %d", to , mynbrs[k].ed, from, myrinfo->id);
-		printf(" || TOP cut partition is : %d; With an ed of %f (node: %d)", rpqSeeTopVal(partition_cutq), rpqSeeTopKey(partition_cutq), i);
-
+        if(gain != 0){
+            rpqUpdate(partition_cutq, to, rpqSeeKey(partition_cutq, to) - gain);
+            rpqUpdate(partition_cutq, from, rpqSeeKey(partition_cutq, from) - gain);
+        }
+		printf("\n Moved %d to %d from %d; gain %d", i, to, from, gain);
+		// printf(" || TOP cut partition is : %d; With an ed of %f (node: %d)", rpqSeeTopVal(partition_cutq), rpqSeeTopKey(partition_cutq), i);
+        // printf("\nNode has %d nbrs", myrinfo->nnbrs);
+        // for(int n = 0; n < myrinfo->nnbrs; n++){
+        //     printf("\nnbr %d from pid %d", n, mynbrs[n].pid);
+        // }
       }
       else {  /* OMODE_BALANCE */
         for (k=myrinfo->nnbrs-1; k>=0; k--) {
@@ -2526,12 +2532,6 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
 	}
 
-	printf("\n TOP cut partition before reset is : %d; With an ed of %f (total edge cut: %d)\n", rpqSeeTopVal(partition_cutq), rpqSeeTopKey(partition_cutq), graph->mincut);
-	/* Reset partition queue containing each partitions cut, since new nodes might appear */
-	for(int pid = 0; pid < nparts; pid++) {
-        rpqUpdate(partition_cutq, pid, 0);
-	}
-
     graph->nbnd = nbnd;
 
     /* Reset the vstatus and associated data structures */
@@ -2552,13 +2552,16 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
          printf(", Doms: [%3"PRIDX" %4"PRIDX"]", imax(nparts, nads,1), isum(nparts, nads,1));
        printf("\n");
     }
-
     if (nmoved == 0 || (omode == OMODE_REFINE && graph->mincut == oldcut))
       break;
   }
 
+
+    for(int pid = 0; pid < nparts; pid++) {
+        printf("\nPartition %d has an ed of %f", pid, rpqSeeKey(partition_cutq, pid));
+    }
+
   rpqDestroy(queue);
   rpqDestroy(partition_cutq);
-
   WCOREPOP;
 }

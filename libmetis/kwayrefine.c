@@ -46,6 +46,7 @@ void RefineKWay(ctrl_t *ctrl, graph_t *orggraph, graph_t *graph)
 
   /* Refine each successively finer graph */
   for (i=0; ;i++) {
+    // printf("\n---------Finer graph iteratation %d/%d--------------\n", i, nlevels);
     if (ctrl->minconn && i == nlevels/2) 
       EliminateSubDomainEdges(ctrl, graph);
 
@@ -125,6 +126,10 @@ void AllocateKWayPartitionMemory(ctrl_t *ctrl, graph_t *graph)
 
   switch (ctrl->objtype) {
     case METIS_OBJTYPE_RGMK:
+        graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
+                          "AllocateKWayPartitionMemory: ckrinfo");
+      break;
+
     case METIS_OBJTYPE_CUT:
       graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
                           "AllocateKWayPartitionMemory: ckrinfo");
@@ -309,11 +314,10 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
         {
         ckrinfo_t *myrinfo;
         cnbr_t *mynbrs;
-        
-        printf("\n--------------------GOT INSIDE THE NEW OBJECTIVE!!(test)--------------------\n");
+
         memset(graph->ckrinfo, 0, sizeof(ckrinfo_t)*nvtxs);
         cnbrpoolReset(ctrl);
-
+        
         for (i=0; i<nvtxs; i++) {
           me      = where[i];
           myrinfo = graph->ckrinfo+i;
@@ -351,11 +355,9 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
 
             ASSERT(myrinfo->nnbrs <= xadj[i+1]-xadj[i]);
 
-            /* Only ed-id>=0 nodes are considered to be in the boundary */
-            if (myrinfo->ed-myrinfo->id >= 0)
-              BNDInsert(nbnd, bndind, bndptr, i);
-          }
-          else {
+
+            BNDInsert(nbnd, bndind, bndptr, i);
+          } else {
             myrinfo->inbr = -1;
           }
         }
@@ -420,7 +422,77 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
 
   /* Compute the required info for refinement */
   switch (ctrl->objtype) {
-    case METIS_OBJTYPE_RGMK:                                                    //for now its the same as objtype cut
+    case METIS_OBJTYPE_RGMK:{                                                   
+        ckrinfo_t *myrinfo;
+        cnbr_t *mynbrs;
+
+        /* go through and project partition and compute id/ed for the nodes */
+        for (i=0; i<nvtxs; i++) {
+          k        = cmap[i];
+          where[i] = cwhere[k];
+          cmap[i]  = (dropedges ? 1 : cgraph->ckrinfo[k].ed);  /* For optimization */
+        }
+
+        memset(graph->ckrinfo, 0, sizeof(ckrinfo_t)*nvtxs);
+        cnbrpoolReset(ctrl);
+
+        for (nbnd=0, i=0; i<nvtxs; i++) {
+          istart = xadj[i];
+          iend   = xadj[i+1];
+
+          myrinfo = graph->ckrinfo+i;
+
+          if (cmap[i] == 0) { /* Interior node. Note that cmap[i] = crinfo[cmap[i]].ed */
+
+            for (tid=0, j=istart; j<iend; j++) 
+              tid += adjwgt[j];
+
+            myrinfo->id   = tid;
+            myrinfo->inbr = -1;
+          }
+          else { /* Potentially an interface node */
+            myrinfo->inbr = cnbrpoolGetNext(ctrl, iend-istart);
+            mynbrs        = ctrl->cnbrpool + myrinfo->inbr;
+
+            me = where[i];
+            for (tid=0, ted=0, j=istart; j<iend; j++) {
+              other = where[adjncy[j]];
+              if (me == other) {
+                tid += adjwgt[j];
+              }
+              else {
+                ted += adjwgt[j];
+                if ((k = htable[other]) == -1) {
+                  htable[other]               = myrinfo->nnbrs;
+                  mynbrs[myrinfo->nnbrs].pid  = other;
+                  mynbrs[myrinfo->nnbrs++].ed = adjwgt[j];
+                }
+                else {
+                  mynbrs[k].ed += adjwgt[j];
+                }
+              }
+            }
+            myrinfo->id = tid;
+            myrinfo->ed = ted;
+      
+            /* Remove space for edegrees if it was interior */
+            if (ted == 0) {
+              ctrl->nbrpoolcpos -= gk_min(nparts, iend-istart);
+              myrinfo->inbr      = -1;
+            }
+            else {
+              if (ted > 0)
+                BNDInsert(nbnd, bndind, bndptr, i); 
+              for (j=0; j<myrinfo->nnbrs; j++)
+                htable[mynbrs[j].pid] = -1;
+            }
+          }
+        }
+      
+        graph->nbnd = nbnd;
+      }
+      ASSERT(CheckBnd2(graph));
+      break;
     case METIS_OBJTYPE_CUT:
       {
         ckrinfo_t *myrinfo;
