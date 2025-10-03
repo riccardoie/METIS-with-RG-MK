@@ -126,10 +126,6 @@ void AllocateKWayPartitionMemory(ctrl_t *ctrl, graph_t *graph)
 
   switch (ctrl->objtype) {
     case METIS_OBJTYPE_RGMK:
-        graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
-                          "AllocateKWayPartitionMemory: ckrinfo");
-      break;
-
     case METIS_OBJTYPE_CUT:
       graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
                           "AllocateKWayPartitionMemory: ckrinfo");

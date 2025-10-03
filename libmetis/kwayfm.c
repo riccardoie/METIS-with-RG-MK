@@ -2377,8 +2377,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
                - graph->ckrinfo[i].id;
       rpqInsert(queue, i, rgain);
       
-	  if(pass == 0)
-      {
+	  if(pass == 0) {
     	rpqUpdate(partition_cutq, where[i], rpqSeeKey(partition_cutq, where[i]) + graph->ckrinfo[i].ed);
       }
 		vstatus[i] = VPQSTATUS_PRESENT;
@@ -2422,12 +2421,23 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         }
         if (k < 0)
           continue;  /* break out if you did not find a candidate */
-        // printf("\nK: %d and top cut pid: %d", k, pid_top_partition);
+
         if(k != pid_top_partition){ /* if the partition with highest cut was chosen stop */
             for (j=k-1; j>=0; j--) {
                 if (!safetos[to=mynbrs[j].pid])
                     continue;
-                if (((mynbrs[j].ed > mynbrs[k].ed) && /* gain is positive and */
+                if (((j == pid_top_partition) && 
+                    (mynbrs[j].ed > myrinfo->id) && /* gain is positive and */
+                     ((tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt)) || /* balance is positive or both weight constraints are met */
+                      ((pwgts[from]-vwgt >= minpwgts[from]) && 
+                       (pwgts[to]+vwgt <= maxpwgts[to])))
+                    ) || /* Or gain is 0 and balance is positive*/
+                    ((mynbrs[j].ed == myrinfo->id) && 
+                     (tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt)))) {
+                        k = j;
+                        break;
+                    }
+                else if (((mynbrs[j].ed > mynbrs[k].ed) && /* gain is better than k and */
                     ((tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt)) || /* balance is positive or both weight constraints are met */
                         ((pwgts[from]-vwgt >= minpwgts[from]) &&
                         (pwgts[to]+vwgt <= maxpwgts[to])))
@@ -2435,10 +2445,6 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
                     ((mynbrs[j].ed == mynbrs[k].ed) && 
                     (tpwgts[mynbrs[k].pid]*pwgts[to] < tpwgts[to]*pwgts[mynbrs[k].pid]))){
                     k = j;
-                    if (k == pid_top_partition){ /* if the partition with highest cut was chosen stop */
-                        // printf("\n\tK: %d and top cut pid: %d", k, pid_top_partition);
-                        break;
-                    }
                 }
             }
         }
