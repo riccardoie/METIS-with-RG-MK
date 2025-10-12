@@ -23,7 +23,7 @@ void Greedy_KWayOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   switch (ctrl->objtype) {
     case METIS_OBJTYPE_RGMK:   
       Refined_KWayCutOptimize(ctrl, graph, niter, ffactor, omode);
-
+        // Greedy_KWayCutOptimize(ctrl, graph, niter, ffactor, omode);
     case METIS_OBJTYPE_CUT:
       if (graph->ncon == 1)
         Greedy_KWayCutOptimize(ctrl, graph, niter, ffactor, omode);
@@ -2262,7 +2262,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   ffactor = 0.0;
   WCOREPUSH;
 
-  printf("\n-----------------NEW REFINEMENT (%d)-------------\n", graph->nvtxs);
+  printf("\n-----------------NEW REFINEMENT (%d)-------------\n", graph->nbnd);
   
   /* Link the graph fields */
   nvtxs  = graph->nvtxs;
@@ -2384,7 +2384,6 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       ListInsert(nupd, updind, updptr, i); 
     }
 
-    // printf("\nTOP cut partition before refinement is : %d; With an ed of %f", rpqSeeTopVal(partition_cutq), rpqSeeTopKey(partition_cutq));    
     /* Start extracting vertices from the queue and try to move them */
     for (nmoved=0, iii=0;;iii++) {
       if ((i = rpqGetTop(queue)) == -1) 
@@ -2452,11 +2451,12 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
         gain = mynbrs[k].ed-myrinfo->id;
 
-        // printf("\nMOVING node from %d to %d with gain %d", from, to, gain);
+        // printf("\nMOVING node %d from %d to %d.\tFROM gets %d and TO gets %d", i + 1, from, to, - (myrinfo->ed - myrinfo->id), -(2 * mynbrs[k].ed - myrinfo->id - myrinfo->ed));
+
         // Update the cut for the affected partitions
-        rpqUpdate(partition_cutq, to, rpqSeeKey(partition_cutq, to) - gain);
-        rpqUpdate(partition_cutq, from, rpqSeeKey(partition_cutq, from) - gain);
-        
+        rpqUpdate(partition_cutq, from, rpqSeeKey(partition_cutq, from) - (myrinfo->ed - myrinfo->id)); /* The partition from will now have a cut equal to the total ed of the node - the id of the node */
+        rpqUpdate(partition_cutq, to, rpqSeeKey(partition_cutq, to) - (2 * mynbrs[k].ed - myrinfo->id - myrinfo->ed)); /* The partition recieving the node will have a cut change equal to:
+                                                                                                                          ed onto the receiving partition - (Total ed of node - ed onto the receiving partition + internal degree)*/
       }
       else {  /* OMODE_BALANCE */
         for (k=myrinfo->nnbrs-1; k>=0; k--) {
@@ -2562,6 +2562,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
     for(int pid = 0; pid < nparts; pid++) {
         printf("\nPartition %d has an ed of %f", pid, rpqSeeKey(partition_cutq, pid));
     }
+    printf("\n");
 
   rpqDestroy(queue);
   rpqDestroy(partition_cutq);
