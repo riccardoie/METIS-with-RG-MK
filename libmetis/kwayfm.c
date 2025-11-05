@@ -31,6 +31,7 @@ void Greedy_KWayOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         Greedy_McKWayCutOptimize(ctrl, graph, niter, ffactor, omode);
       break;
 
+    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_VOL:
       if (graph->ncon == 1)
         Greedy_KWayVolOptimize(ctrl, graph, niter, ffactor, omode);

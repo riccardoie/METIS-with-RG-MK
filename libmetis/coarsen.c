@@ -839,7 +839,7 @@ void CreateCoarseGraph(ctrl_t *ctrl, graph_t *graph, idx_t cnvtxs,
 
   WCOREPUSH;
 
-  dovsize   = (ctrl->objtype == METIS_OBJTYPE_VOL ? 1 : 0);
+  dovsize = (ctrl->objtype == METIS_OBJTYPE_VOL || ctrl->objtype == METIS_OBJTYPE_NVOL) ? 1 : 0;
   dropedges = ctrl->dropedges;
 
   mask = HTLENGTH;

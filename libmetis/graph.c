@@ -53,7 +53,7 @@ graph_t *SetupGraph(ctrl_t *ctrl, idx_t nvtxs, idx_t ncon, idx_t *xadj,
   }
 
 
-  if (ctrl->objtype == METIS_OBJTYPE_VOL) { 
+  if (ctrl->objtype == METIS_OBJTYPE_VOL || ctrl->objtype == METIS_OBJTYPE_NVOL) { 
     /* Setup the vsize */
     if (vsize) {
       graph->vsize      = vsize;
@@ -332,7 +332,7 @@ void graph_WriteToDisk(ctrl_t *ctrl, graph_t *graph)
     if (fwrite(graph->adjwgt, sizeof(idx_t), xadj[nvtxs], fpout) != xadj[nvtxs])
       goto error;
   }
-  if (ctrl->objtype == METIS_OBJTYPE_VOL) { 
+  if (ctrl->objtype == METIS_OBJTYPE_VOL || ctrl->objtype == METIS_OBJTYPE_NVOL) { 
     if (graph->free_vsize) {
       if (fwrite(graph->vsize, sizeof(idx_t), nvtxs, fpout) != nvtxs)
         goto error;
@@ -408,7 +408,7 @@ void graph_ReadFromDisk(ctrl_t *ctrl, graph_t *graph)
       goto error;
   }
 
-  if (ctrl->objtype == METIS_OBJTYPE_VOL) {
+  if (ctrl->objtype == METIS_OBJTYPE_VOL || ctrl->objtype == METIS_OBJTYPE_NVOL) {
     if (graph->free_vsize) {
       graph->vsize = imalloc(nvtxs, "graph_ReadFromDisk: vsize");
       if (fread(graph->vsize, sizeof(idx_t), nvtxs, fpin) != nvtxs)

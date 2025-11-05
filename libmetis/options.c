@@ -184,6 +184,9 @@ void PrintCtrl(ctrl_t *ctrl)
     case METIS_OBJTYPE_VOL:
       printf("METIS_OBJTYPE_VOL\n");
       break;
+    case METIS_OBJTYPE_NVOL:
+      printf("METIS_OBJTYPE_NVOL\n");
+      break;
     case METIS_OBJTYPE_NODE:
       printf("METIS_OBJTYPE_NODE\n");
       break;
@@ -374,7 +377,7 @@ int CheckParams(ctrl_t *ctrl)
       break;
 
     case METIS_OP_KMETIS:
-      if (ctrl->objtype != METIS_OBJTYPE_CUT && ctrl->objtype != METIS_OBJTYPE_VOL && ctrl->objtype != METIS_OBJTYPE_RGMK) {    //added rgmk
+      if (ctrl->objtype != METIS_OBJTYPE_CUT && ctrl->objtype != METIS_OBJTYPE_VOL && ctrl->objtype != METIS_OBJTYPE_NVOL && ctrl->objtype != METIS_OBJTYPE_RGMK) {    //added rgmk
         IFSET(dbglvl, METIS_DBG_INFO, printf("Input Error: Incorrect objective type.\n"));
         return 0;
       }

@@ -63,6 +63,7 @@ static gk_StringMap_t ptype_options[] = {
 static gk_StringMap_t objtype_options[] = {
  {"cut",                METIS_OBJTYPE_CUT},
  {"vol",                METIS_OBJTYPE_VOL},
+ {"nvol",               METIS_OBJTYPE_NVOL},
  {"rg-mk",              METIS_OBJTYPE_RGMK},                        //added rgmk as an option
  {NULL,                 0}
 };
@@ -126,6 +127,7 @@ static char helpstr[][100] =
 "     The possible values are:",
 "        cut      - Minimize the edgecut [default]",
 "        vol      - Minimize the total communication volume",
+"        nvol     - New way to minimize the total communication volume",
 "        rg-mk    - New way to refine (under development)",
 " ",
 /*

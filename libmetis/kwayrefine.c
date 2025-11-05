@@ -130,7 +130,7 @@ void AllocateKWayPartitionMemory(ctrl_t *ctrl, graph_t *graph)
       graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
                           "AllocateKWayPartitionMemory: ckrinfo");
       break;
-
+    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_VOL:
       graph->vkrinfo = (vkrinfo_t *)gk_malloc(graph->nvtxs*sizeof(vkrinfo_t), 
                           "AllocateKWayVolPartitionMemory: vkrinfo");
@@ -248,7 +248,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
       }
       ASSERT(CheckBnd2(graph));
       break;
-
+    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_VOL:
       {
         vkrinfo_t *myrinfo;
@@ -561,7 +561,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
       }
       ASSERT(CheckBnd2(graph));
       break;
-
+    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_VOL:
       {
         vkrinfo_t *myrinfo;
@@ -672,7 +672,7 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
         }
       }
       break;
-
+    
     case METIS_OBJTYPE_VOL:
       /* Compute the boundary */
       if (bndtype == BNDTYPE_REFINE) {
@@ -700,6 +700,22 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
       else { /* BNDTYPE_BALANCE */
         for (i=0; i<nvtxs; i++) {
           if (graph->ckrinfo[i].ed > 0) 
+            BNDInsert(nbnd, bndind, bndptr, i);
+        }
+      }
+      break;
+
+    case METIS_OBJTYPE_NVOL:
+      /* Compute the boundary */
+      if (bndtype == BNDTYPE_REFINE) {
+        for (i=0; i<nvtxs; i++) {
+          if (graph->vkrinfo[i].gv >= 0)
+            BNDInsert(nbnd, bndind, bndptr, i);
+        }
+      }
+      else { /* BNDTYPE_BALANCE */
+        for (i=0; i<nvtxs; i++) {
+          if (graph->vkrinfo[i].ned > 0) 
             BNDInsert(nbnd, bndind, bndptr, i);
         }
       }
