@@ -656,10 +656,7 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
   bndptr = iset(nvtxs, -1, graph->bndptr);
 
   nbnd = 0;
-
   switch (ctrl->objtype) {
-
-    case METIS_OBJTYPE_RGMK:                            //for now its the same as cut
     case METIS_OBJTYPE_CUT:
       /* Compute the boundary */
       if (bndtype == BNDTYPE_REFINE) {
@@ -687,6 +684,22 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
       else { /* BNDTYPE_BALANCE */
         for (i=0; i<nvtxs; i++) {
           if (graph->vkrinfo[i].ned > 0) 
+            BNDInsert(nbnd, bndind, bndptr, i);
+        }
+      }
+      break;
+    
+    case METIS_OBJTYPE_RGMK:                            
+        /* Compute the boundary */
+      if (bndtype == BNDTYPE_REFINE) {
+        for (i=0; i<nvtxs; i++) {   
+          if (graph->ckrinfo[i].ed > 0)             //we want all edge vertices in our boundary
+            BNDInsert(nbnd, bndind, bndptr, i);
+        }
+      }
+      else { /* BNDTYPE_BALANCE */
+        for (i=0; i<nvtxs; i++) {
+          if (graph->ckrinfo[i].ed > 0) 
             BNDInsert(nbnd, bndind, bndptr, i);
         }
       }

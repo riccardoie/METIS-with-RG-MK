@@ -2262,7 +2262,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   ffactor = 0.0;
   WCOREPUSH;
 
-  printf("\n-----------------NEW REFINEMENT (%d)-------------\n", graph->nbnd);
+  printf("\n-----------------NEW REFINEMENT(%d -- type %d)-------------\n", graph->nbnd, omode);
   
   /* Link the graph fields */
   nvtxs  = graph->nvtxs;
@@ -2479,6 +2479,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
         to = mynbrs[k].pid;
 
+        printf("\nMoving node in balance op");
         //if (pwgts[from] < maxpwgts[from] && pwgts[to] > minpwgts[to] && 
         //    mynbrs[k].ed-myrinfo->id < 0) 
         //  continue;
@@ -2558,11 +2559,13 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       break;
   }
 
+    // if (omode == OMODE_REFINE){
+        for(int pid = 0; pid < nparts; pid++) {
+            printf("\nPartition %d has an ed of %f", pid, rpqSeeKey(partition_cutq, pid));
+        }
+        printf("\n");
+    // }
 
-    for(int pid = 0; pid < nparts; pid++) {
-        printf("\nPartition %d has an ed of %f", pid, rpqSeeKey(partition_cutq, pid));
-    }
-    printf("\n");
 
   rpqDestroy(queue);
   rpqDestroy(partition_cutq);
