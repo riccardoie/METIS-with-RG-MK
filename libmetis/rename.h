@@ -117,6 +117,7 @@
 #define Greedy_KWayCutOptimize		libmetis__Greedy_KWayCutOptimize
 #define Refined_KWayCutOptimize		libmetis__Refined_KWayCutOptimize
 #define Greedy_KWayVolOptimize          libmetis__Greedy_KWayVolOptimize
+#define Greedy_KWayNVolOptimize         libmetis__Greedy_KWayNVolOptimize
 #define Greedy_McKWayCutOptimize        libmetis__Greedy_McKWayCutOptimize
 #define Greedy_McKWayVolOptimize        libmetis__Greedy_McKWayVolOptimize
 #define IsArticulationNode              libmetis__IsArticulationNode
