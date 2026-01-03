@@ -14,7 +14,13 @@
 #ifndef _LIBMETIS_STRUCT_H_
 #define _LIBMETIS_STRUCT_H_
 
-
+/*************************************************************************/
+/*! This data structure stores cut-based k-way refinement info about a 
+    partition.  */
+/*************************************************************************/
+typedef struct pcutinfo_t {
+  idx_t total_cut;      /*!< The total cut for the partition */
+} pcutinfo_t;
 
 /*************************************************************************/
 /*! This data structure stores cut-based k-way refinement info about an
@@ -112,6 +118,7 @@ typedef struct graph_t {
   /* K-way refinement parameters */
   ckrinfo_t *ckrinfo;   /*!< The per-vertex cut-based refinement info */
   vkrinfo_t *vkrinfo;   /*!< The per-vertex volume-based refinement info */
+  pcutinfo_t *pcutinfo; /*!< The per-partition cut info */
 
   /* Node refinement information */
   nrinfo_t *nrinfo;
@@ -122,7 +129,10 @@ typedef struct graph_t {
 
   /* keep track of the dropped edgewgt */
   idx_t droppedewgt;
-
+  
+  /* momentary variable to calc repetitions */
+  idx_t iterations;
+  
   /* the linked-list structure of the sequence of graphs */
   struct graph_t *coarser, *finer;
 

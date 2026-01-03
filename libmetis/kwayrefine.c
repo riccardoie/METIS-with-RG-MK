@@ -18,6 +18,7 @@ void RefineKWay(ctrl_t *ctrl, graph_t *orggraph, graph_t *graph)
 {
   idx_t i, nlevels, contig=ctrl->contig;
   graph_t *ptr;
+  graph->iterations = 0;
 
   IFSET(ctrl->dbglvl, METIS_DBG_TIME, gk_startcputimer(ctrl->UncoarsenTmr));
 
@@ -46,7 +47,6 @@ void RefineKWay(ctrl_t *ctrl, graph_t *orggraph, graph_t *graph)
 
   /* Refine each successively finer graph */
   for (i=0; ;i++) {
-    // printf("\n---------Finer graph iteratation %d/%d--------------\n", i, nlevels);
     if (ctrl->minconn && i == nlevels/2) 
       EliminateSubDomainEdges(ctrl, graph);
 
@@ -108,7 +108,7 @@ void RefineKWay(ctrl_t *ctrl, graph_t *orggraph, graph_t *graph)
 
   if (ctrl->contig) 
     ASSERT(FindPartitionInducedComponents(graph, graph->where, NULL, NULL) == ctrl->nparts);
-
+  printf("\nMetis had %d iterations \n", graph->iterations);
   IFSET(ctrl->dbglvl, METIS_DBG_TIME, gk_stopcputimer(ctrl->UncoarsenTmr));
 }
 
@@ -129,6 +129,8 @@ void AllocateKWayPartitionMemory(ctrl_t *ctrl, graph_t *graph)
     case METIS_OBJTYPE_CUT:
       graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
                           "AllocateKWayPartitionMemory: ckrinfo");
+      graph->pcutinfo  = (pcutinfo_t *)gk_malloc(ctrl->nparts*sizeof(pcutinfo_t), 
+                          "AllocateKWayPartitionMemory: pcutinfo");
       break;
     case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_VOL:
@@ -310,10 +312,14 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
         {
         ckrinfo_t *myrinfo;
         cnbr_t *mynbrs;
+        pcutinfo_t *mypcutinfo;
 
         memset(graph->ckrinfo, 0, sizeof(ckrinfo_t)*nvtxs);
         cnbrpoolReset(ctrl);
         
+        mypcutinfo = graph->pcutinfo;
+        memset(graph->pcutinfo, 0, sizeof(pcutinfo_t)*nparts);
+
         for (i=0; i<nvtxs; i++) {
           me      = where[i];
           myrinfo = graph->ckrinfo+i;
@@ -324,7 +330,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
             else
               myrinfo->ed += adjwgt[j];
           }
-
+          mypcutinfo[me].total_cut += myrinfo->ed;
           /* Time to compute the particular external degrees */
           if (myrinfo->ed > 0) {
             mincut += myrinfo->ed;
@@ -348,7 +354,6 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
                 }
               }
             }
-
             ASSERT(myrinfo->nnbrs <= xadj[i+1]-xadj[i]);
 
 
@@ -421,6 +426,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
     case METIS_OBJTYPE_RGMK:{                                                   
         ckrinfo_t *myrinfo;
         cnbr_t *mynbrs;
+        pcutinfo_t *mypcutinfo;
 
         /* go through and project partition and compute id/ed for the nodes */
         for (i=0; i<nvtxs; i++) {
@@ -430,6 +436,9 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
         }
 
         memset(graph->ckrinfo, 0, sizeof(ckrinfo_t)*nvtxs);
+        memset(graph->pcutinfo, 0, sizeof(pcutinfo_t)*nparts);
+        mypcutinfo = graph->pcutinfo;
+        
         cnbrpoolReset(ctrl);
 
         for (nbnd=0, i=0; i<nvtxs; i++) {
@@ -470,7 +479,9 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
             }
             myrinfo->id = tid;
             myrinfo->ed = ted;
-      
+            
+            mypcutinfo[where[i]].total_cut += myrinfo->ed;
+
             /* Remove space for edegrees if it was interior */
             if (ted == 0) {
               ctrl->nbrpoolcpos -= gk_min(nparts, iend-istart);

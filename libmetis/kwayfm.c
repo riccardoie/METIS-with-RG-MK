@@ -24,6 +24,7 @@ void Greedy_KWayOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
     case METIS_OBJTYPE_RGMK:   
       Refined_KWayCutOptimize(ctrl, graph, niter, ffactor, omode);
         // Greedy_KWayCutOptimize(ctrl, graph, niter, ffactor, omode);
+      break;
     case METIS_OBJTYPE_CUT:
       if (graph->ncon == 1)
         Greedy_KWayCutOptimize(ctrl, graph, niter, ffactor, omode);
@@ -230,6 +231,7 @@ void Greedy_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       /* Find the most promising subdomain to move to */
       if (omode == OMODE_REFINE) {
         for (k=myrinfo->nnbrs-1; k>=0; k--) {
+            graph->iterations++;
           if (!safetos[to=mynbrs[k].pid])
             continue;
           if (((mynbrs[k].ed > myrinfo->id) && 
@@ -247,6 +249,7 @@ void Greedy_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
           continue;  /* break out if you did not find a candidate */
 
         for (j=k-1; j>=0; j--) {
+            graph->iterations++;
           if (!safetos[to=mynbrs[j].pid])
             continue;
           if (((mynbrs[j].ed > mynbrs[k].ed) && 
@@ -2265,7 +2268,6 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   ffactor = 0.0;
   WCOREPUSH;
 
-  printf("\n-----------------NEW REFINEMENT(%d -- type %d)-------------\n", graph->nbnd, omode);
   
   /* Link the graph fields */
   nvtxs  = graph->nvtxs;
@@ -2343,7 +2345,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
    
     for(int pid = 0; pid < nparts; pid++) {
         rpqInsert(partition_cutq, pid, 0);
-    
+
     }
 
   /*=====================================================================
@@ -2413,6 +2415,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         if (from == pid_top_partition && myrinfo->ed < myrinfo->id) /* No move gives cut improvement to the top partition */
             continue;
         for (k=myrinfo->nnbrs-1; k>=0; k--) {
+            graph->iterations++;
             if (!safetos[to=mynbrs[k].pid])
                 continue;
             if (((mynbrs[k].pid == pid_top_partition) && 
@@ -2442,6 +2445,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
           continue;  /* break out if you did not find a candidate */
         if(mynbrs[k].pid != pid_top_partition){ /* if the partition with highest cut was chosen stop */
             for (j=k-1; j>=0; j--) {
+                graph->iterations++;
                 if (!safetos[to=mynbrs[j].pid])
                     continue;
                 if (((mynbrs[j].pid == pid_top_partition) && 
@@ -2473,6 +2477,10 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         // printf("\nMOVING node %d from %d to %d.\tFROM gets %d and TO gets %d", i + 1, from, to, - (myrinfo->ed - myrinfo->id), -(2 * mynbrs[k].ed - myrinfo->id - myrinfo->ed));
 
         // Update the cut for the affected partitions
+
+        graph->pcutinfo[to].total_cut -= (2 * mynbrs[k].ed - myrinfo->id - myrinfo->ed); 
+        graph->pcutinfo[from].total_cut -= (myrinfo->ed - myrinfo->id);
+
         rpqUpdate(partition_cutq, from, rpqSeeKey(partition_cutq, from) - (myrinfo->ed - myrinfo->id)); /* The partition from will now have a cut equal to the total ed of the node - the id of the node */
         rpqUpdate(partition_cutq, to, rpqSeeKey(partition_cutq, to) - (2 * mynbrs[k].ed - myrinfo->id - myrinfo->ed)); /* The partition recieving the node will have a cut change equal to:
                                                                                                                           ed onto the receiving partition - (Total ed of node - ed onto the receiving partition + internal degree)*/
@@ -2534,7 +2542,6 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       INC_DEC(pwgts[to], pwgts[from], vwgt);
       UpdateMovedVertexInfoAndBND(i, from, k, to, myrinfo, mynbrs, where, nbnd, 
           bndptr, bndind, bndtype);
-      
       /* Update the degrees of adjacent vertices */
       for (j=xadj[i]; j<xadj[i+1]; j++) {
         ii = adjncy[j];
@@ -2578,12 +2585,12 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       break;
   }
 
-    // if (omode == OMODE_REFINE){
-    for(int pid = 0; pid < nparts; pid++) {
-        printf("\nPartition %d has an ed of %f", pid, rpqSeeKey(partition_cutq, pid));
+    if (omode == OMODE_REFINE){
+        for(int pid = 0; pid < nparts; pid++) {
+            printf("\nPartition %d has an ed of %f (Testing %d)", pid, rpqSeeKey(partition_cutq, pid), graph->pcutinfo[pid].total_cut);
+        }
+        printf("\n");
     }
-    printf("\n");
-    // }
 
 
   rpqDestroy(queue);
