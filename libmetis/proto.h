@@ -154,6 +154,8 @@ void Greedy_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
          real_t ffactor, idx_t omode);
 void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter, 
          real_t ffactor, idx_t omode);
+void Old_Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter, 
+         real_t ffactor, idx_t omode);
 void Greedy_KWayVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter, 
          real_t ffactor, idx_t omode);
 void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter, 
@@ -183,6 +185,8 @@ int IsBalanced(ctrl_t *ctrl, graph_t *graph, real_t ffactor);
 
 
 /* mcutil.c */
+idx_t get_top_pid(ctrl_t *ctrl, graph_t *graph);
+idx_t from_is_greater(graph_t *graph, ckrinfo_t *myrinfo, cnbr_t *mynbrs, idx_t from);
 int rvecle(idx_t n, real_t *x, real_t *y);
 int rvecge(idx_t n, real_t *x, real_t *y);
 int rvecsumle(idx_t n, real_t *x1, real_t *x2, real_t *y);

@@ -116,6 +116,7 @@
 #define Greedy_KWayOptimize		libmetis__Greedy_KWayOptimize
 #define Greedy_KWayCutOptimize		libmetis__Greedy_KWayCutOptimize
 #define Refined_KWayCutOptimize		libmetis__Refined_KWayCutOptimize
+#define Old_Refined_KWayCutOptimize		libmetis__Old_Refined_KWayCutOptimize
 #define Greedy_KWayVolOptimize          libmetis__Greedy_KWayVolOptimize
 #define Greedy_KWayNVolOptimize         libmetis__Greedy_KWayNVolOptimize
 #define Greedy_McKWayCutOptimize        libmetis__Greedy_McKWayCutOptimize
@@ -133,6 +134,8 @@
 #define IsBalanced			libmetis__IsBalanced
 
 /* mcutil */
+#define get_top_pid                     libmetis__get_top_pid
+#define from_is_greater                 libmetis__from_is_greater
 #define rvecle                          libmetis__rvecle
 #define rvecge                          libmetis__rvecge
 #define rvecsumle                       libmetis__rvecsumle

@@ -13,6 +13,49 @@
 
 #include "metislib.h"
 
+/*************************************************************************/
+/*! This function finds the partition with the greatest cut. (If one or 
+    two have the same value then it returns only one of them). 
+*/
+/**************************************************************************/
+idx_t get_top_pid(ctrl_t *ctrl, graph_t *graph) {
+
+    idx_t nparts, top_cut_pid;
+    pcutinfo_t *mypcutinfo; 
+
+    nparts = ctrl->nparts;
+    mypcutinfo = graph->pcutinfo;
+    top_cut_pid = 0;
+
+    for(int pid = 0; pid < nparts; pid++) {
+        if(pid == top_cut_pid) {
+            continue;
+        } else if (mypcutinfo[pid].total_cut > mypcutinfo[top_cut_pid].total_cut) {
+            top_cut_pid = pid;
+        }
+    }
+
+    return top_cut_pid;
+}
+
+/*************************************************************************/
+/*! This function finds out whether the from partition is greater than its
+    neighbors. If one of the neighbors is greater we stop and return -1.
+*/
+/**************************************************************************/
+idx_t from_is_greater(graph_t *graph, ckrinfo_t *myrinfo, cnbr_t *mynbrs, idx_t from) {
+    idx_t check, k;
+    check = -1;
+
+    for (k=myrinfo->nnbrs-1; k>=0; k--) {
+        if(graph->pcutinfo[from].total_cut < graph->pcutinfo[mynbrs[k].pid].total_cut)
+            break;
+    }
+    if(k < 0) {
+        check = 1;
+    }
+    return check;
+}
 
 /*************************************************************************/
 /*! This function compares two vectors x & y and returns true 
