@@ -20,7 +20,19 @@
 /*************************************************************************/
 typedef struct pcutinfo_t {
   idx_t total_cut;      /*!< The total cut for the partition */
+  idx_t total_vol;      /*!< The total vol for the partition */
 } pcutinfo_t;
+
+/*************************************************************************/
+/*! This data structure is used during refinement to perform RG-MK logic 
+    with local max cut optimization.  */
+/*************************************************************************/
+typedef struct refinement_table {
+    idx_t gain_cut;     /*!< */
+    idx_t gain_vol;     /*!< */
+    idx_t ok;           /*!< 1 if ok else -1 */
+    idx_t index;        /*!< index in neighbr pool of partition*/
+} refinement_table;
 
 /*************************************************************************/
 /*! This data structure stores cut-based k-way refinement info about an
@@ -119,6 +131,7 @@ typedef struct graph_t {
   ckrinfo_t *ckrinfo;   /*!< The per-vertex cut-based refinement info */
   vkrinfo_t *vkrinfo;   /*!< The per-vertex volume-based refinement info */
   pcutinfo_t *pcutinfo; /*!< The per-partition cut info */
+  refinement_table *ref_table;
 
   /* Node refinement information */
   nrinfo_t *nrinfo;

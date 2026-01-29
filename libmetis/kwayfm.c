@@ -2265,6 +2265,8 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   real_t rgain;
   ckrinfo_t *myrinfo;
   pcutinfo_t *mypcutinfo;     /* List of partition cuts per partition */
+  refinement_table *ref_table;
+  idx_t *marker;
   cnbr_t *mynbrs;
 
   ffactor = 0.0;
@@ -2287,6 +2289,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   tpwgts = ctrl->tpwgts;
 
   mypcutinfo = graph->pcutinfo;
+  ref_table = graph->ref_table;
 
   /* Setup the weight intervals of the various subdomains */
   minpwgts = iwspacemalloc(ctrl, nparts);
@@ -2395,9 +2398,6 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
       from = where[i];
       vwgt = graph->vwgt[i];
-      pid_top_partition = get_top_pid(ctrl, graph); /* store the pid of the top partition */
-
-      check = from_is_greater(graph, myrinfo, mynbrs, from);    //1 if from is greater than its neighbors else -1
 
       if (ctrl->contig && IsArticulationNode(i, xadj, adjncy, where, bfslvl, bfsind, bfsmrk))
         continue;
@@ -2407,68 +2407,59 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
       /* Find the most promising subdomain to move to */
       if (omode == OMODE_REFINE) {
-        for (k=myrinfo->nnbrs-1; k>=0; k--) {
-            if (check == 1 && myrinfo->ed < myrinfo->id) /* No move gives cut improvement to from partition which is the one with the greatest cut */
-                continue;
-            graph->iterations++;
-            if (!safetos[to=mynbrs[k].pid])
-                continue;
-            if (((graph->pcutinfo[to].total_cut > graph->pcutinfo[from].total_cut) && 
-                ((2 * mynbrs[k].ed > myrinfo->ed + myrinfo->id) && /* gain is positive when we move the node into a partition with greater cut and */
-                    ((tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt)) || /* balance is positive or both weight constraints are met */
-                    ((pwgts[from]-vwgt >= minpwgts[from]) && 
-                    (pwgts[to]+vwgt <= maxpwgts[to])))
-                )) || /* Or gain is 0 and balance is positive*/
-                ((2 * mynbrs[k].ed == myrinfo->ed + myrinfo->id) && 
-                    (tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt))))
-                break;
-            else if ((check == 1) &&    /* We know this move gives positive gain already */
-                     ((tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt)) || /* balance is positive or both weight constraints are met */
-                      ((pwgts[from]-vwgt >= minpwgts[from]) && 
-                       (pwgts[to]+vwgt <= maxpwgts[to]))))
-                break;
-        }
-        if (k < 0)
-            continue;  /* break out if you did not find a candidate */
-        if(mynbrs[k].pid != pid_top_partition){ /* if the partition with highest cut was chosen stop */
-            for (j=k-1; j>=0; j--) {
-                graph->iterations++;
-                if (!safetos[to=mynbrs[j].pid])
-                    continue;
-            
-            if (((to == pid_top_partition) && 
-                ((2 * mynbrs[j].ed > myrinfo->ed + myrinfo->id) && /* gain is positive when we move the node into the top partition and */
-                    ((tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt)) || /* balance is positive or both weight constraints are met */
-                    ((pwgts[from]-vwgt >= minpwgts[from]) && 
-                    (pwgts[to]+vwgt <= maxpwgts[to])))
-                )) || /* Or gain is 0 and balance is positive*/
-                ((2 * mynbrs[j].ed == myrinfo->ed + myrinfo->id) && 
-                    (tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt)))) {
-                    k = j;
-                    break;
-            } 
-            else if (((graph->pcutinfo[to].total_cut > graph->pcutinfo[mynbrs[k].pid].total_cut) && 
-                ((2 * mynbrs[j].ed > myrinfo->ed + myrinfo->id) && /* gain is positive when we move the node into a partition with greater cut and */
-                        ((tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt)) || /* balance is positive or both weight constraints are met */
-                        ((pwgts[from]-vwgt >= minpwgts[from]) &&
-                        (pwgts[to]+vwgt <= maxpwgts[to])))
-                    )) || /* Or gain is 0 and balance is positive */
-                    ((2 * mynbrs[j].ed == myrinfo->ed + myrinfo->id) && 
-                    (tpwgts[mynbrs[k].pid]*pwgts[to] < tpwgts[to]*pwgts[mynbrs[k].pid]))){
-                        k = j; 
-                    }
+
+        idx_t pid_greatest_cut = -1;
+        memset(graph->ref_table, 0, sizeof(refinement_table)*nparts);
+
+        for (idx_t ind=myrinfo->nnbrs-1; ind >= 0; ind--) {
+
+            to = mynbrs[ind].pid;
+
+            if (!safetos[to])
+                ref_table[to].ok = -1;
+
+            if (pid_greatest_cut == -1)
+                pid_greatest_cut = to;
+
+            // balance is positive or both weight constraints are met
+            if ((tpwgts[from]*pwgts[to] < tpwgts[to]*(pwgts[from]-vwgt)) ||
+                ((pwgts[from]-vwgt >= minpwgts[from]) && 
+                 (pwgts[to]+vwgt <= maxpwgts[to]))) {
+                ref_table[to].ok = 1;
+            } else {
+                ref_table[to].ok = -1;
             }
+            
+            ref_table[to].gain_cut = 2 * mynbrs[ind].ed - myrinfo->id - myrinfo->ed;
+            ref_table[to].index = ind;
+
+            // store which partition has greatest cut before moving a node, only store if its good
+            if (mypcutinfo[pid_greatest_cut].total_cut < mypcutinfo[to].total_cut && 
+                ref_table[to].ok == 1 &&
+                ref_table[to].gain_cut >= 0)
+                    pid_greatest_cut = to;         
         }
         
+        // Make sure that we have a valid move and not the placeholder from the first iteration
+        if(ref_table[pid_greatest_cut].ok == 1 && ref_table[pid_greatest_cut].gain_cut >= 0){
+            to = pid_greatest_cut;
+        }
+        else {
+            continue;
+        }
 
-        to = mynbrs[k].pid;
+        if (mypcutinfo[from].total_cut > mypcutinfo[to].total_cut){
+            if (myrinfo->ed < myrinfo->id)
+                printf("\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa");
+        }
 
+        k = ref_table[to].index;
         gain = mynbrs[k].ed-myrinfo->id;
 
-        // Update the cut for the affected partitions
-        graph->pcutinfo[to].total_cut -= (2 * mynbrs[k].ed - myrinfo->id - myrinfo->ed); 
+        graph->pcutinfo[to].total_cut -= ref_table[to].gain_cut; 
         graph->pcutinfo[from].total_cut -= (myrinfo->ed - myrinfo->id);
-      }   
+
+    }   
       else {  /* OMODE_BALANCE */
         for (k=myrinfo->nnbrs-1; k>=0; k--) {
           if (!safetos[to=mynbrs[k].pid])
@@ -2489,8 +2480,11 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         }
 
         to = mynbrs[k].pid;
-
-        // printf("\nMoving node in balance op");
+        gain = mynbrs[k].ed-myrinfo->id;
+        // Update the cut for the affected partitions
+        graph->pcutinfo[to].total_cut -= (2 * mynbrs[k].ed - myrinfo->id - myrinfo->ed); 
+        graph->pcutinfo[from].total_cut -= (myrinfo->ed - myrinfo->id);
+        
         //if (pwgts[from] < maxpwgts[from] && pwgts[to] > minpwgts[to] && 
         //    mynbrs[k].ed-myrinfo->id < 0) 
         //  continue;
@@ -2569,12 +2563,12 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       break;
   }
 
-    if (omode == OMODE_REFINE){
-        for(int pid = 0; pid < nparts; pid++) {
-            printf("\nPartition %d has an ed of %d ", pid, mypcutinfo[pid].total_cut);
-        }
-        printf("\n");
-    }
+    // if (omode == OMODE_REFINE){
+    //     for(int pid = 0; pid < nparts; pid++) {
+    //         printf("\nPartition %d\tCut: %d", pid, mypcutinfo[pid].total_cut);
+    //     }
+    //     printf("\n");
+    // }
 
 
   rpqDestroy(queue);
@@ -2923,12 +2917,12 @@ void Old_Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       break;
   }
 
-    if (omode == OMODE_REFINE){
-        for(int pid = 0; pid < nparts; pid++) {
-            printf("\nPartition %d has an ed of %d ", pid, mypcutinfo[pid].total_cut);
-        }
-        printf("\n");
-    }
+    // if (omode == OMODE_REFINE){
+    //     for(int pid = 0; pid < nparts; pid++) {
+    //         printf("\nPartition %d has an ed of %d ", pid, mypcutinfo[pid].total_cut);
+    //     }
+    //     printf("\n");
+    // }
 
 
   rpqDestroy(queue);
