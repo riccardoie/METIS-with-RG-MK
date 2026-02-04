@@ -369,7 +369,8 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
             }
             ASSERT(myrinfo->nnbrs <= xadj[i+1]-xadj[i]);
 
-            if (myrinfo->ed-myrinfo->id >= 0)
+            // if (myrinfo->ed-myrinfo->id >= 0)
+            if(myrinfo->ed > 0)
                 BNDInsert(nbnd, bndind, bndptr, i);
           } else {
             myrinfo->inbr = -1;
@@ -511,8 +512,9 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
             }
             else {
             // ted > 0
-              if (ted-tid >= 0)
-                BNDInsert(nbnd, bndind, bndptr, i); 
+            //   if (ted-tid >= 0)
+                if (ted > 0)
+                    BNDInsert(nbnd, bndind, bndptr, i); 
               for (j=0; j<myrinfo->nnbrs; j++)
                 htable[mynbrs[j].pid] = -1;
             }
@@ -727,8 +729,8 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
         /* Compute the boundary */
       if (bndtype == BNDTYPE_REFINE) {
         for (i=0; i<nvtxs; i++) {   
-        //   if (graph->ckrinfo[i].ed > 0)             //we want all edge vertices in our boundary
-        if (graph->ckrinfo[i].ed > 0 && graph->ckrinfo[i].ed-graph->ckrinfo[i].id >= 0)
+        // if (graph->ckrinfo[i].ed > 0 && graph->ckrinfo[i].ed-graph->ckrinfo[i].id >= 0)
+           if (graph->ckrinfo[i].ed > 0)             //we want all edge vertices in our boundary
             BNDInsert(nbnd, bndind, bndptr, i);
         }
       }

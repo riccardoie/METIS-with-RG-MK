@@ -2248,7 +2248,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
          real_t ffactor, idx_t omode)
 {
   /* Common variables to all types of kway-refinement/balancing routines */
-  idx_t i, ii, iii, j, k, l, pass, nvtxs, nparts, gain; 
+  idx_t i, ii, iii, j, k, l, ind, pass, nvtxs, nparts, gain; 
   idx_t from, me, to, oldcut, vwgt;
   idx_t *xadj, *adjncy, *adjwgt;
   idx_t *where, *pwgts, *perm, *bndptr, *bndind, *minpwgts, *maxpwgts;
@@ -2256,7 +2256,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   idx_t maxndoms, *safetos=NULL, *nads=NULL, *doms=NULL, **adids=NULL, **adwgts=NULL;
   idx_t *bfslvl=NULL, *bfsind=NULL, *bfsmrk=NULL;
   idx_t bndtype = (omode == OMODE_REFINE ? BNDTYPE_REFINE : BNDTYPE_BALANCE);
-  idx_t pid_top_partition, check;
+  idx_t pid_greatest_cut, check;
   real_t *tpwgts, ubfactor;
 
   /* Edgecut-specific/different variables */
@@ -2266,7 +2266,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   ckrinfo_t *myrinfo;
   pcutinfo_t *mypcutinfo;     /* List of partition cuts per partition */
   refinement_table *ref_table;
-  idx_t *marker;
+
   cnbr_t *mynbrs;
 
   ffactor = 0.0;
@@ -2383,7 +2383,7 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
                - graph->ckrinfo[i].id;
       rpqInsert(queue, i, rgain);
       
-		vstatus[i] = VPQSTATUS_PRESENT;
+      vstatus[i] = VPQSTATUS_PRESENT;
       ListInsert(nupd, updind, updptr, i); 
     }
 
@@ -2408,10 +2408,10 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       /* Find the most promising subdomain to move to */
       if (omode == OMODE_REFINE) {
 
-        idx_t pid_greatest_cut = -1;
+        pid_greatest_cut = -1;
         memset(graph->ref_table, 0, sizeof(refinement_table)*nparts);
 
-        for (idx_t ind=myrinfo->nnbrs-1; ind >= 0; ind--) {
+        for (ind=myrinfo->nnbrs-1; ind >= 0; ind--) {
 
             to = mynbrs[ind].pid;
 
@@ -2447,17 +2447,14 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         else {
             continue;
         }
-
-        if (mypcutinfo[from].total_cut > mypcutinfo[to].total_cut){
-            if (myrinfo->ed < myrinfo->id)
-                printf("\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa");
-        }
-
         k = ref_table[to].index;
         gain = mynbrs[k].ed-myrinfo->id;
 
+        /* Update partitions info */
         graph->pcutinfo[to].total_cut -= ref_table[to].gain_cut; 
         graph->pcutinfo[from].total_cut -= (myrinfo->ed - myrinfo->id);
+
+        update_volume(ctrl, graph, i, to);
 
     }   
       else {  /* OMODE_BALANCE */
@@ -2484,7 +2481,8 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         // Update the cut for the affected partitions
         graph->pcutinfo[to].total_cut -= (2 * mynbrs[k].ed - myrinfo->id - myrinfo->ed); 
         graph->pcutinfo[from].total_cut -= (myrinfo->ed - myrinfo->id);
-        
+
+        update_volume(ctrl, graph, i, to);
         //if (pwgts[from] < maxpwgts[from] && pwgts[to] > minpwgts[to] && 
         //    mynbrs[k].ed-myrinfo->id < 0) 
         //  continue;
@@ -2563,13 +2561,12 @@ void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       break;
   }
 
-    // if (omode == OMODE_REFINE){
-    //     for(int pid = 0; pid < nparts; pid++) {
-    //         printf("\nPartition %d\tCut: %d", pid, mypcutinfo[pid].total_cut);
-    //     }
-    //     printf("\n");
-    // }
-
+    if (omode == OMODE_REFINE){
+        for(int pid = 0; pid < nparts; pid++) {
+            printf("\nPartition %d\tCut: %d\tVol: %d", pid, mypcutinfo[pid].total_cut, mypcutinfo[pid].total_vol);
+        }
+        printf("\n");
+    }
 
   rpqDestroy(queue);
   WCOREPOP;

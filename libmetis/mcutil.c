@@ -1,5 +1,5 @@
 /*
- * mutil.c 
+ * mutil.c
  *
  * This file contains various utility functions for the MOC portion of the
  * code
@@ -13,15 +13,97 @@
 
 #include "metislib.h"
 
+void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to) {
+    idx_t n, j, f, ii, check;
+    idx_t other, from;
+    idx_t check_f, check_t;
+    idx_t *where, *xadj, *adjncy;
+    idx_t *marker;
+
+    pcutinfo_t *mypcutinfo;
+
+    ckrinfo_t *myrinfo;
+    cnbr_t *mynbrs;
+
+    xadj   = graph->xadj;
+    adjncy = graph->adjncy;
+    where = graph->where;
+    mypcutinfo = graph->pcutinfo;
+    from = where[i];
+
+    myrinfo = graph->ckrinfo+i;
+    mynbrs  = ctrl->cnbrpool + myrinfo->inbr;
+
+    for (j=xadj[i]; j<xadj[i+1]; j++) {
+        ii     = adjncy[j];
+        other  = where[ii];
+        check = 0;
+
+        if (from == other) {
+            for (f=xadj[ii]; f<xadj[ii+1]; f++) {
+                if (where[adjncy[f]] == to) {
+                    check++;
+                    break;
+                }
+            }
+            /* If the node has no connection to "to" increase vol */
+            if (check == 0)
+            {
+                mypcutinfo[from].total_vol += 1;
+            }
+        }
+        else if (to == other) {
+            for (f=xadj[ii]; f<xadj[ii+1]; f++) {
+                if (where[adjncy[f]] == from)
+                    check += 1;
+
+                if (check == 2) {
+                    break;
+                }
+            }
+            /* Nodes havent moved yet so a node needs at least two connections to "from"
+            in order for the volume to be ignored */
+            if (check < 2)
+            {
+                mypcutinfo[to].total_vol -= 1;
+            }
+        }
+        else {
+            check_f = 0;
+            check_t = 0;
+
+            for (f=xadj[ii]; f<xadj[ii+1]; f++) {
+                if (where[adjncy[f]] == from)
+                    check_f += 1;
+                else if (where[adjncy[f]] == to)
+                    check_t += 1;
+            }
+
+            /* If a node has one connection to "from" and one or more connections to "to" decrease vol */
+            /* If a node has one or more connections to "from" and no connections to "to" increase vol */
+            /* All other cases no change in volume */
+            if (check_f == 1 && check_t > 0)
+                mypcutinfo[other].total_vol -= 1;
+            else if (check_f > 1 && check_t == 0)
+                mypcutinfo[other].total_vol += 1;
+            
+        }
+      }
+      mypcutinfo[from].total_vol -= myrinfo->nnbrs;
+      mypcutinfo[to].total_vol += myrinfo->nnbrs;
+
+}
+
+
 /*************************************************************************/
-/*! This function finds the partition with the greatest cut. (If one or 
-    two have the same value then it returns only one of them). 
+/*! This function finds the partition with the greatest cut. (If one or
+    two have the same value then it returns only one of them).
 */
 /**************************************************************************/
 idx_t get_top_pid(ctrl_t *ctrl, graph_t *graph) {
 
     idx_t nparts, top_cut_pid;
-    pcutinfo_t *mypcutinfo; 
+    pcutinfo_t *mypcutinfo;
 
     nparts = ctrl->nparts;
     mypcutinfo = graph->pcutinfo;
@@ -58,14 +140,14 @@ idx_t from_is_greater(graph_t *graph, ckrinfo_t *myrinfo, cnbr_t *mynbrs, idx_t 
 }
 
 /*************************************************************************/
-/*! This function compares two vectors x & y and returns true 
+/*! This function compares two vectors x & y and returns true
     if \forall i, x[i] <= y[i].
 */
 /**************************************************************************/
 int rvecle(idx_t n, real_t *x, real_t *y)
 {
   for (n--; n>=0; n--) {
-    if (x[n] > y[n]) 
+    if (x[n] > y[n])
       return 0;
   }
 
@@ -74,14 +156,14 @@ int rvecle(idx_t n, real_t *x, real_t *y)
 
 
 /*************************************************************************/
-/*! This function compares two vectors x & y and returns true 
+/*! This function compares two vectors x & y and returns true
     if \forall i, x[i] >= y[i].
 */
 /**************************************************************************/
 int rvecge(idx_t n, real_t *x, real_t *y)
 {
   for (n--; n>=0; n--) {
-    if (x[n] < y[n]) 
+    if (x[n] < y[n])
       return 0;
   }
 
@@ -90,14 +172,14 @@ int rvecge(idx_t n, real_t *x, real_t *y)
 
 
 /*************************************************************************/
-/*! This function compares vectors x1+x2 against y and returns true 
-    if \forall i, x1[i]+x2[i] <= y[i]. 
+/*! This function compares vectors x1+x2 against y and returns true
+    if \forall i, x1[i]+x2[i] <= y[i].
 */
 /**************************************************************************/
 int rvecsumle(idx_t n, real_t *x1, real_t *x2, real_t *y)
 {
   for (n--; n>=0; n--) {
-    if (x1[n]+x2[n] > y[n]) 
+    if (x1[n]+x2[n] > y[n])
       return 0;
   }
 
@@ -115,7 +197,7 @@ real_t rvecmaxdiff(idx_t n, real_t *x, real_t *y)
   max = x[0]-y[0];
 
   for (n--; n>0; n--) {
-    if (max < x[n]-y[n]) 
+    if (max < x[n]-y[n])
       max = x[n]-y[n];
   }
 
@@ -129,7 +211,7 @@ real_t rvecmaxdiff(idx_t n, real_t *x, real_t *y)
 int ivecle(idx_t n, idx_t *x, idx_t *z)
 {
   for (n--; n>=0; n--) {
-    if (x[n] > z[n]) 
+    if (x[n] > z[n])
       return 0;
   }
 
@@ -143,7 +225,7 @@ int ivecle(idx_t n, idx_t *x, idx_t *z)
 int ivecge(idx_t n, idx_t *x, idx_t *z)
 {
   for (n--; n>=0; n--) {
-    if (x[n] < z[n]) 
+    if (x[n] < z[n])
       return 0;
   }
 
@@ -157,7 +239,7 @@ int ivecge(idx_t n, idx_t *x, idx_t *z)
 int ivecaxpylez(idx_t n, idx_t a, idx_t *x, idx_t *y, idx_t *z)
 {
   for (n--; n>=0; n--) {
-    if (a*x[n]+y[n] > z[n]) 
+    if (a*x[n]+y[n] > z[n])
       return 0;
   }
 
@@ -171,7 +253,7 @@ int ivecaxpylez(idx_t n, idx_t a, idx_t *x, idx_t *y, idx_t *z)
 int ivecaxpygez(idx_t n, idx_t a, idx_t *x, idx_t *y, idx_t *z)
 {
   for (n--; n>=0; n--) {
-    if (a*x[n]+y[n] < z[n]) 
+    if (a*x[n]+y[n] < z[n])
       return 0;
   }
 
@@ -180,10 +262,10 @@ int ivecaxpygez(idx_t n, idx_t a, idx_t *x, idx_t *y, idx_t *z)
 
 
 /*************************************************************************/
-/*! This function checks if v+u2 provides a better balance in the weight 
+/*! This function checks if v+u2 provides a better balance in the weight
      vector that v+u1 */
 /*************************************************************************/
-int BetterVBalance(idx_t ncon, real_t *invtvwgt, idx_t *v_vwgt, idx_t *u1_vwgt, 
+int BetterVBalance(idx_t ncon, real_t *invtvwgt, idx_t *v_vwgt, idx_t *u1_vwgt,
         idx_t *u2_vwgt)
 {
   idx_t i;
@@ -206,9 +288,9 @@ int BetterVBalance(idx_t ncon, real_t *invtvwgt, idx_t *v_vwgt, idx_t *u1_vwgt,
 
 
 /*************************************************************************/
-/*! This function takes two ubfactor-centered load imbalance vectors x & y, 
+/*! This function takes two ubfactor-centered load imbalance vectors x & y,
     and returns true if y is better balanced than x. */
-/*************************************************************************/ 
+/*************************************************************************/
 int BetterBalance2Way(idx_t n, real_t *x, real_t *y)
 {
   real_t nrm1=0.0, nrm2=0.0;
@@ -222,15 +304,15 @@ int BetterBalance2Way(idx_t n, real_t *x, real_t *y)
 
 
 /*************************************************************************/
-/*! Given a vertex and two weights, this function returns 1, if the second 
-    partition will be more balanced than the first after the weighted 
+/*! Given a vertex and two weights, this function returns 1, if the second
+    partition will be more balanced than the first after the weighted
     additional of that vertex.
     The balance determination takes into account the ideal target weights
     of the two partitions.
 */
 /*************************************************************************/
-int BetterBalanceKWay(idx_t ncon, idx_t *vwgt, real_t *ubvec, 
-        idx_t a1, idx_t *pt1, real_t *bm1, 
+int BetterBalanceKWay(idx_t ncon, idx_t *vwgt, real_t *ubvec,
+        idx_t a1, idx_t *pt1, real_t *bm1,
         idx_t a2, idx_t *pt2, real_t *bm2)
 {
   idx_t i;
@@ -247,7 +329,7 @@ int BetterBalanceKWay(idx_t ncon, idx_t *vwgt, real_t *ubvec,
     nrm2 += tmp*tmp;
     max2 = (tmp > max2 ? tmp : max2);
 
-    //printf("%4d %4d %4d %4d %4d %4d %4d %.2f\n", 
+    //printf("%4d %4d %4d %4d %4d %4d %4d %.2f\n",
     //    (int)vwgt[i],
     //    (int)a1, (int)pt1[i], (int)tpt1[i],
     //    (int)a2, (int)pt2[i], (int)tpt2[i], ubvec[i]);
@@ -265,9 +347,9 @@ int BetterBalanceKWay(idx_t ncon, idx_t *vwgt, real_t *ubvec,
 
 
 /*************************************************************************/
-/*! Computes the maximum load imbalance of a partitioning solution over 
+/*! Computes the maximum load imbalance of a partitioning solution over
     all the constraints. */
-/**************************************************************************/ 
+/**************************************************************************/
 real_t ComputeLoadImbalance(graph_t *graph, idx_t nparts, real_t *pijbm)
 {
   idx_t i, j, ncon, *pwgts;
@@ -290,12 +372,12 @@ real_t ComputeLoadImbalance(graph_t *graph, idx_t nparts, real_t *pijbm)
 
 
 /*************************************************************************/
-/*! Computes the maximum load imbalance difference of a partitioning 
-    solution over all the constraints. 
-    The difference is defined with respect to the allowed maximum 
-    unbalance for the respective constraint. 
+/*! Computes the maximum load imbalance difference of a partitioning
+    solution over all the constraints.
+    The difference is defined with respect to the allowed maximum
+    unbalance for the respective constraint.
  */
-/**************************************************************************/ 
+/**************************************************************************/
 real_t ComputeLoadImbalanceDiff(graph_t *graph, idx_t nparts, real_t *pijbm,
            real_t *ubvec)
 {
@@ -319,12 +401,12 @@ real_t ComputeLoadImbalanceDiff(graph_t *graph, idx_t nparts, real_t *pijbm,
 
 
 /*************************************************************************/
-/*! Computes the difference between load imbalance of each constraint across 
+/*! Computes the difference between load imbalance of each constraint across
     the partitions minus the desired upper bound on the load imabalnce.
     It also returns the maximum load imbalance across the partitions &
     constraints. */
-/**************************************************************************/ 
-real_t ComputeLoadImbalanceDiffVec(graph_t *graph, idx_t nparts, real_t *pijbm, 
+/**************************************************************************/
+real_t ComputeLoadImbalanceDiffVec(graph_t *graph, idx_t nparts, real_t *pijbm,
          real_t *ubfactors, real_t *diffvec)
 {
   idx_t i, j, ncon, *pwgts;
@@ -350,8 +432,8 @@ real_t ComputeLoadImbalanceDiffVec(graph_t *graph, idx_t nparts, real_t *pijbm,
 
 /*************************************************************************/
 /*! Computes the load imbalance of each constraint across the partitions. */
-/**************************************************************************/ 
-void ComputeLoadImbalanceVec(graph_t *graph, idx_t nparts, real_t *pijbm, 
+/**************************************************************************/
+void ComputeLoadImbalanceVec(graph_t *graph, idx_t nparts, real_t *pijbm,
          real_t *lbvec)
 {
   idx_t i, j, ncon, *pwgts;
