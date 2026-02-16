@@ -137,15 +137,12 @@ idx_t MlevelKWayPartitioning(ctrl_t *ctrl, graph_t *graph, idx_t *part)
       case METIS_OBJTYPE_CUT:
         curobj = graph->mincut;
         break;
-
+        
+      case METIS_OBJTYPE_NVOL:
       case METIS_OBJTYPE_VOL:
         curobj = graph->minvol;
         break;
     
-      case METIS_OBJTYPE_NVOL:
-        curobj = graph->minvol;
-        break;
-
       case METIS_OBJTYPE_RGMK:                           //for now rgmk does the exact same thing as cut
         curobj = graph->mincut;
         break;

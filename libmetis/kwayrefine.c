@@ -125,16 +125,26 @@ void AllocateKWayPartitionMemory(ctrl_t *ctrl, graph_t *graph)
   graph->bndind = imalloc(graph->nvtxs,  "AllocateKWayPartitionMemory: bndind");
 
   switch (ctrl->objtype) {
+    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_RGMK:
-    case METIS_OBJTYPE_CUT:
       graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
                           "AllocateKWayPartitionMemory: ckrinfo");
-      graph->pcutinfo  = (pcutinfo_t *)gk_malloc(ctrl->nparts*sizeof(pcutinfo_t), 
+      graph->pcutinfo  = (pinfo_t *)gk_malloc(ctrl->nparts*sizeof(pinfo_t), 
                           "AllocateKWayPartitionMemory: pcutinfo");
       graph->ref_table  = (refinement_table *)gk_malloc(ctrl->nparts*sizeof(refinement_table), 
                       "AllocateKWayPartitionMemory: refinement table");
+      graph->vol_ref_table = (vol_refinement_table *)gk_malloc(ctrl->nparts*sizeof(vol_refinement_table), 
+                      "AllocateKWayPartitionMemory: refinement table");
+      for (idx_t ind = 0; ind < ctrl->nparts; ind++){
+        graph->vol_ref_table[ind].gain_list = ismalloc(ctrl->nparts, 0, "Gain list");
+      }
       break;
-    case METIS_OBJTYPE_NVOL:
+
+    case METIS_OBJTYPE_CUT:
+        graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
+                          "AllocateKWayPartitionMemory: ckrinfo");
+        break;
+
     case METIS_OBJTYPE_VOL:
       graph->vkrinfo = (vkrinfo_t *)gk_malloc(graph->nvtxs*sizeof(vkrinfo_t), 
                           "AllocateKWayVolPartitionMemory: vkrinfo");
@@ -142,6 +152,12 @@ void AllocateKWayPartitionMemory(ctrl_t *ctrl, graph_t *graph)
       /* This is to let the cut-based -minconn and -contig large-scale graph
          changes to go through */
       graph->ckrinfo = (ckrinfo_t *)graph->vkrinfo;
+      
+      graph->vol_ref_table = (vol_refinement_table *)gk_malloc(ctrl->nparts*sizeof(vol_refinement_table), 
+                      "AllocateKWayPartitionMemory: refinement table");
+      for (idx_t ind = 0; ind < ctrl->nparts; ind++){
+        graph->vol_ref_table[ind].gain_list = ismalloc(ctrl->nparts, 0, "Gain list");
+      }
       break;
 
     default:
@@ -252,7 +268,6 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
       }
       ASSERT(CheckBnd2(graph));
       break;
-    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_VOL:
       {
         vkrinfo_t *myrinfo;
@@ -309,20 +324,20 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
       }
       ASSERT(graph->minvol == ComputeVolume(graph, graph->where));
       break;
-    
+    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_RGMK:
         {
         ckrinfo_t *myrinfo;
         cnbr_t *mynbrs;
-        pcutinfo_t *mypcutinfo;
+        pinfo_t *mypinfo;
         idx_t *marker;
 
         memset(graph->ckrinfo, 0, sizeof(ckrinfo_t)*nvtxs);
         cnbrpoolReset(ctrl);
         
-        memset(graph->pcutinfo, 0, sizeof(pcutinfo_t)*nparts);
+        memset(graph->pcutinfo, 0, sizeof(pinfo_t)*nparts);
         marker = ismalloc(nparts, -1, "ComputeVolume: marker");
-        mypcutinfo = graph->pcutinfo;
+        mypinfo = graph->pcutinfo;
         
         for (i=0; i<nvtxs; i++) {
           me      = where[i];
@@ -339,11 +354,11 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
 
             if (marker[k] != i) {
                 marker[k] = i;
-                mypcutinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
+                mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
             }
             
           }
-          mypcutinfo[me].total_cut += myrinfo->ed;
+          mypinfo[me].total_cut += myrinfo->ed;
           /* Time to compute the particular external degrees */
           if (myrinfo->ed > 0) {
             mincut += myrinfo->ed;
@@ -437,10 +452,11 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
 
   /* Compute the required info for refinement */
   switch (ctrl->objtype) {
+    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_RGMK:{                                                   
         ckrinfo_t *myrinfo;
         cnbr_t *mynbrs;
-        pcutinfo_t *mypcutinfo;
+        pinfo_t *mypinfo;
         idx_t *marker; 
 
         /* go through and project partition and compute id/ed for the nodes */
@@ -451,9 +467,9 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
         }
 
         memset(graph->ckrinfo, 0, sizeof(ckrinfo_t)*nvtxs);
-        memset(graph->pcutinfo, 0, sizeof(pcutinfo_t)*nparts);
+        memset(graph->pcutinfo, 0, sizeof(pinfo_t)*nparts);
         marker = ismalloc(nparts, -1, "ComputeVolume: marker");
-        mypcutinfo = graph->pcutinfo;
+        mypinfo = graph->pcutinfo;
         
         cnbrpoolReset(ctrl);
 
@@ -482,7 +498,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
               
               if (marker[other] != i) {
                 marker[other] = i;
-                mypcutinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
+                mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
               }
 
               if (me == other) {
@@ -503,7 +519,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
             myrinfo->id = tid;
             myrinfo->ed = ted;
             
-            mypcutinfo[where[i]].total_cut += myrinfo->ed;
+            mypinfo[where[i]].total_cut += myrinfo->ed;
 
             /* Remove space for edegrees if it was interior */
             if (ted == 0) {
@@ -597,7 +613,6 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
       }
       ASSERT(CheckBnd2(graph));
       break;
-    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_VOL:
       {
         vkrinfo_t *myrinfo;
@@ -724,7 +739,8 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
         }
       }
       break;
-    
+
+    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_RGMK:                            
         /* Compute the boundary */
       if (bndtype == BNDTYPE_REFINE) {
@@ -737,22 +753,6 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
       else { /* BNDTYPE_BALANCE */
         for (i=0; i<nvtxs; i++) {
           if (graph->ckrinfo[i].ed > 0) 
-            BNDInsert(nbnd, bndind, bndptr, i);
-        }
-      }
-      break;
-
-    case METIS_OBJTYPE_NVOL:
-      /* Compute the boundary */
-      if (bndtype == BNDTYPE_REFINE) {
-        for (i=0; i<nvtxs; i++) {
-          if (graph->vkrinfo[i].gv >= 0)
-            BNDInsert(nbnd, bndind, bndptr, i);
-        }
-      }
-      else { /* BNDTYPE_BALANCE */
-        for (i=0; i<nvtxs; i++) {
-          if (graph->vkrinfo[i].ned > 0) 
             BNDInsert(nbnd, bndind, bndptr, i);
         }
       }
@@ -879,4 +879,3 @@ int IsBalanced(ctrl_t *ctrl, graph_t *graph, real_t ffactor)
     (ComputeLoadImbalanceDiff(graph, ctrl->nparts, ctrl->pijbm, ctrl->ubfactors) 
          <= ffactor);
 }
-

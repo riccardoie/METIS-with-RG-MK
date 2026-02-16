@@ -15,16 +15,16 @@
 #define _LIBMETIS_STRUCT_H_
 
 /*************************************************************************/
-/*! This data structure stores cut-based k-way refinement info about a 
+/*! This data structure stores k-way refinement info about a
     partition.  */
 /*************************************************************************/
-typedef struct pcutinfo_t {
+typedef struct pinfo_t {
   idx_t total_cut;      /*!< The total cut for the partition */
   idx_t total_vol;      /*!< The total vol for the partition */
-} pcutinfo_t;
+} pinfo_t;
 
 /*************************************************************************/
-/*! This data structure is used during refinement to perform RG-MK logic 
+/*! This data structure is used during refinement to perform RG-MK logic
     with local max cut optimization.  */
 /*************************************************************************/
 typedef struct refinement_table {
@@ -33,6 +33,10 @@ typedef struct refinement_table {
     idx_t ok;           /*!< 1 if ok else -1 */
     idx_t index;        /*!< index in neighbr pool of partition*/
 } refinement_table;
+
+typedef struct vol_refinement_table {
+    idx_t *gain_list;
+} vol_refinement_table;
 
 /*************************************************************************/
 /*! This data structure stores cut-based k-way refinement info about an
@@ -90,7 +94,7 @@ typedef struct vkrinfo_t {
     partition */
 /*************************************************************************/
 typedef struct nrinfo_t {
- idx_t edegrees[2];  
+ idx_t edegrees[2];
 } nrinfo_t;
 
 
@@ -99,7 +103,7 @@ typedef struct nrinfo_t {
 /*************************************************************************/
 typedef struct graph_t {
   idx_t nvtxs, nedges;	/* The # of vertices and edges in the graph */
-  idx_t ncon;		/* The # of constrains */ 
+  idx_t ncon;		/* The # of constrains */
   idx_t *xadj;		/* Pointers to the locally stored vertices */
   idx_t *vwgt;		/* Vertex weights */
   idx_t *vsize;		/* Vertex sizes for min-volume formulation */
@@ -130,9 +134,11 @@ typedef struct graph_t {
   /* K-way refinement parameters */
   ckrinfo_t *ckrinfo;   /*!< The per-vertex cut-based refinement info */
   vkrinfo_t *vkrinfo;   /*!< The per-vertex volume-based refinement info */
-  pcutinfo_t *pcutinfo; /*!< The per-partition cut info */
+  pinfo_t *pcutinfo;    /*!< The per-partition cut info */
+  idx_t pid_top_partition; 
   refinement_table *ref_table;
-
+  vol_refinement_table *vol_ref_table;
+  
   /* Node refinement information */
   nrinfo_t *nrinfo;
 
@@ -142,10 +148,10 @@ typedef struct graph_t {
 
   /* keep track of the dropped edgewgt */
   idx_t droppedewgt;
-  
+
   /* momentary variable to calc repetitions */
   idx_t iterations;
-  
+
   /* the linked-list structure of the sequence of graphs */
   struct graph_t *coarser, *finer;
 
@@ -199,7 +205,7 @@ typedef struct ctrl_t {
   real_t pfactor;		/* .1*(user-supplied prunning factor) */
 
   real_t *ubfactors;            /*!< The per-constraint ubfactors */
-  
+
   real_t *tpwgts;               /*!< The target partition weights */
   real_t *pijbm;                /*!< The nparts*ncon multiplies for the ith partition
                                      and jth constraint for obtaining the balance */
@@ -207,11 +213,11 @@ typedef struct ctrl_t {
   real_t cfactor;               /*!< The achieved compression factor */
 
   /* Various Timers */
-  double TotalTmr, InitPartTmr, MatchTmr, ContractTmr, CoarsenTmr, UncoarsenTmr, 
+  double TotalTmr, InitPartTmr, MatchTmr, ContractTmr, CoarsenTmr, UncoarsenTmr,
          RefTmr, ProjectTmr, SplitTmr, Aux1Tmr, Aux2Tmr, Aux3Tmr;
 
   /* Workspace information */
-  gk_mcore_t *mcore;    /*!< The persistent memory core for within function 
+  gk_mcore_t *mcore;    /*!< The persistent memory core for within function
                              mallocs/frees */
 
   /* These are for use by the k-way refinement routines */
@@ -227,7 +233,7 @@ typedef struct ctrl_t {
                              The size and current position of the pool is controlled
                              by nnbrs & cnbrs */
 
-  /* The subdomain graph, in sparse format  */ 
+  /* The subdomain graph, in sparse format  */
   idx_t *maxnads;               /* The maximum allocated number of adjacent domains */
   idx_t *nads;                  /* The number of adjacent domains */
   idx_t **adids;                /* The IDs of the adjacent domains */

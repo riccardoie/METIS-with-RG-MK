@@ -13,14 +13,20 @@
 
 #include "metislib.h"
 
+/*************************************************************************/
+/*! This function updates the partitions specific communication volume 
+    when performing a move. The argument i represents the node being moved
+    and to the pid of the destination of i.
+*/
+/**************************************************************************/
 void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to) {
-    idx_t n, j, f, ii, check;
+    idx_t n, j, f, ii, check, vsize;
     idx_t other, from;
     idx_t check_f, check_t;
     idx_t *where, *xadj, *adjncy;
     idx_t *marker;
 
-    pcutinfo_t *mypcutinfo;
+    pinfo_t *mypinfo;
 
     ckrinfo_t *myrinfo;
     cnbr_t *mynbrs;
@@ -28,11 +34,12 @@ void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to) {
     xadj   = graph->xadj;
     adjncy = graph->adjncy;
     where = graph->where;
-    mypcutinfo = graph->pcutinfo;
+    mypinfo = graph->pcutinfo;
     from = where[i];
 
     myrinfo = graph->ckrinfo+i;
     mynbrs  = ctrl->cnbrpool + myrinfo->inbr;
+    vsize = (graph->vsize ? graph->vsize[i] : 1);
 
     for (j=xadj[i]; j<xadj[i+1]; j++) {
         ii     = adjncy[j];
@@ -40,6 +47,7 @@ void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to) {
         check = 0;
 
         if (from == other) {
+            /* Could probably use nbrs here instead which are probably fewer than nodes */
             for (f=xadj[ii]; f<xadj[ii+1]; f++) {
                 if (where[adjncy[f]] == to) {
                     check++;
@@ -48,25 +56,20 @@ void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to) {
             }
             /* If the node has no connection to "to" increase vol */
             if (check == 0)
-            {
-                mypcutinfo[from].total_vol += 1;
-            }
+                mypinfo[from].total_vol += vsize;
         }
         else if (to == other) {
             for (f=xadj[ii]; f<xadj[ii+1]; f++) {
                 if (where[adjncy[f]] == from)
                     check += 1;
 
-                if (check == 2) {
+                if (check == 2) 
                     break;
-                }
             }
             /* Nodes havent moved yet so a node needs at least two connections to "from"
             in order for the volume to be ignored */
             if (check < 2)
-            {
-                mypcutinfo[to].total_vol -= 1;
-            }
+                mypinfo[to].total_vol -= vsize;
         }
         else {
             check_f = 0;
@@ -78,20 +81,113 @@ void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to) {
                 else if (where[adjncy[f]] == to)
                     check_t += 1;
             }
-
             /* If a node has one connection to "from" and one or more connections to "to" decrease vol */
             /* If a node has one or more connections to "from" and no connections to "to" increase vol */
             /* All other cases no change in volume */
             if (check_f == 1 && check_t > 0)
-                mypcutinfo[other].total_vol -= 1;
+                mypinfo[other].total_vol -= vsize;
             else if (check_f > 1 && check_t == 0)
-                mypcutinfo[other].total_vol += 1;
+                mypinfo[other].total_vol += vsize;
             
         }
       }
-      mypcutinfo[from].total_vol -= myrinfo->nnbrs;
-      mypcutinfo[to].total_vol += myrinfo->nnbrs;
+      mypinfo[from].total_vol -= myrinfo->nnbrs * vsize;
+      mypinfo[to].total_vol += myrinfo->nnbrs * vsize;
 
+      if (myrinfo->id == 0)
+        mypinfo[from].total_vol -= vsize;
+}
+
+void testing_vol (ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to){
+   idx_t j, f, ii, ind, other, from;
+    idx_t nparts, nnbrs;
+    idx_t *where, *xadj, *adjncy;
+    idx_t *marker;
+    idx_t gain;
+
+    pinfo_t *mypinfo;
+    vkrinfo_t *orinfo, *myrinfo;
+    vnbr_t *onbrs;
+    vol_refinement_table *ref_table;
+
+    nparts = ctrl->nparts;
+    xadj   = graph->xadj;
+    adjncy = graph->adjncy;
+    where = graph->where;
+    // mypinfo = graph->pcutinfo;
+    from = where[i];
+    myrinfo = graph->vkrinfo+i;
+
+    ref_table = graph->vol_ref_table;
+    gain = 0;
+
+    for (ind = 0; ind < nparts; ind++){
+        memset(ref_table[ind].gain_list, 0, sizeof(idx_t)*nparts);
+    }
+
+    marker = ismalloc(nparts, 0, "Testing_vol: marker");
+    /* Iterate neighboring nodes of i */
+    for (j=xadj[i]; j<xadj[i+1]; j++) {
+        ii     = adjncy[j];
+        other  = where[ii];
+        orinfo = graph->vkrinfo+ii;
+        onbrs  = ctrl->vnbrpool + orinfo->inbr;
+
+        memset(marker, 0, sizeof(idx_t)*nparts);
+
+        if (other == from ){
+            /* Find all connections from "from" to other partitions */
+            for (ind = orinfo->nnbrs - 1; ind >= 0; ind--) {
+                marker[onbrs[ind].pid] = 1;
+            }
+
+            /* Increase volume to each nbr without connection */
+            for (ind = 0; ind < nparts; ind++){
+                if(marker[ind] != 1)
+                    ref_table[from].gain_list[ind] += graph->vsize[ii];
+                
+                // if(mypinfo[ind].total_vol > mypinfo[graph->pid_top_partition].total_vol)
+                //     graph->pid_top_partition = ind;
+            }
+        } else {
+            /* Mark all connection node ii has to other partitions */
+            /* Not using nnbrs here because the number of edges to each partition is relevant. */
+            for (f=xadj[ii]; f<xadj[ii+1]; f++) {
+                marker[where[adjncy[f]]] += 1;
+            }
+            for (ind = 0; ind < nparts; ind++) {
+                
+                /* No changes to apply when visiting from partition
+                    will use the information in other partitions */
+                // if (ind == from)
+                //     continue;
+
+                /* When visiting own partition handle like if it were destination */
+                if (ind == other) {
+                    if (marker[from] == 1)
+                    {
+                        ref_table[other].gain_list[other] -= graph->vsize[ii]; 
+                    }
+                } else {    /* All other cases handle ind as destination partition */
+                    if (marker[from] == 1 && marker[ind] > 0)
+                        ref_table[other].gain_list[ind] -= graph->vsize[ii];
+                    else if (marker[from] > 1 && marker[ind] == 0)
+                        ref_table[other].gain_list[ind] += graph->vsize[ii];
+                }
+            }
+        }
+    }
+
+    for (ind = 0; ind < nparts; ind++) {
+        if (ind != from) {
+            ref_table[ind].gain_list[ind] += myrinfo->nnbrs * graph->vsize[i];
+        }
+        ref_table[from].gain_list[ind] -= myrinfo->nnbrs * graph->vsize[i];
+
+        if(myrinfo->nid == 0)
+            ref_table[from].gain_list[ind] -= graph->vsize[i];
+    }
+    gk_free((void **)&marker, LTERM);
 }
 
 
@@ -103,16 +199,16 @@ void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to) {
 idx_t get_top_pid(ctrl_t *ctrl, graph_t *graph) {
 
     idx_t nparts, top_cut_pid;
-    pcutinfo_t *mypcutinfo;
+    pinfo_t *mypinfo;
 
     nparts = ctrl->nparts;
-    mypcutinfo = graph->pcutinfo;
+    mypinfo = graph->pcutinfo;
     top_cut_pid = 0;
 
     for(int pid = 0; pid < nparts; pid++) {
         if(pid == top_cut_pid) {
             continue;
-        } else if (mypcutinfo[pid].total_cut > mypcutinfo[top_cut_pid].total_cut) {
+        } else if (mypinfo[pid].total_cut > mypinfo[top_cut_pid].total_cut) {
             top_cut_pid = pid;
         }
     }

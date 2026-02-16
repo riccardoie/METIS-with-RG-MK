@@ -172,7 +172,7 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
          idx_t *modind);
 void Greedy_KWayEdgeStats(ctrl_t *ctrl, graph_t *graph);
 void Greedy_KWayEdgeCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter);
-
+void compute_potential_move_volume_change(ctrl_t *ctrl, graph_t *graph, idx_t i);
 
 /* kwayrefine.c */
 void RefineKWay(ctrl_t *ctrl, graph_t *orggraph, graph_t *graph);
@@ -186,6 +186,7 @@ int IsBalanced(ctrl_t *ctrl, graph_t *graph, real_t ffactor);
 
 /* mcutil.c */
 void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to);
+void testing_vol (ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to);
 idx_t get_top_pid(ctrl_t *ctrl, graph_t *graph);
 idx_t from_is_greater(graph_t *graph, ckrinfo_t *myrinfo, cnbr_t *mynbrs, idx_t from);
 int rvecle(idx_t n, real_t *x, real_t *y);
