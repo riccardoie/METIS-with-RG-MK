@@ -352,7 +352,7 @@ void EliminateComponents(ctrl_t *ctrl, graph_t *graph)
   xadj   = graph->xadj;
   adjncy = graph->adjncy;
   vwgt   = graph->vwgt;
-  adjwgt = (ctrl->objtype == METIS_OBJTYPE_VOL) ? NULL : graph->adjwgt;
+  adjwgt = (ctrl->objtype == METIS_OBJTYPE_VOL || ctrl->objtype == METIS_OBJTYPE_NVOL) ? NULL : graph->adjwgt;
 
   where = graph->where;
   pwgts = graph->pwgts;

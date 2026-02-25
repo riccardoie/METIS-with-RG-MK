@@ -136,6 +136,7 @@ typedef struct graph_t {
   vkrinfo_t *vkrinfo;   /*!< The per-vertex volume-based refinement info */
   pinfo_t *pcutinfo;    /*!< The per-partition cut info */
   idx_t pid_top_partition; 
+  idx_t debugging;
   refinement_table *ref_table;
   vol_refinement_table *vol_ref_table;
   

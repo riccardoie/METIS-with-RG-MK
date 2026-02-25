@@ -187,7 +187,7 @@ int IsBalanced(ctrl_t *ctrl, graph_t *graph, real_t ffactor);
 /* mcutil.c */
 void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to);
 void testing_vol (ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to);
-idx_t get_top_pid(ctrl_t *ctrl, graph_t *graph);
+idx_t *get_top_pid(ctrl_t *ctrl, graph_t *graph, idx_t *partition_vols);
 idx_t from_is_greater(graph_t *graph, ckrinfo_t *myrinfo, cnbr_t *mynbrs, idx_t from);
 int rvecle(idx_t n, real_t *x, real_t *y);
 int rvecge(idx_t n, real_t *x, real_t *y);

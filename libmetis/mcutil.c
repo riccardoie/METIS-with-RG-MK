@@ -39,12 +39,13 @@ void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to) {
 
     myrinfo = graph->ckrinfo+i;
     mynbrs  = ctrl->cnbrpool + myrinfo->inbr;
-    vsize = (graph->vsize ? graph->vsize[i] : 1);
+    // vsize = 1;
 
     for (j=xadj[i]; j<xadj[i+1]; j++) {
         ii     = adjncy[j];
         other  = where[ii];
         check = 0;
+        vsize = (graph->vsize ? graph->vsize[ii] : 1);
 
         if (from == other) {
             /* Could probably use nbrs here instead which are probably fewer than nodes */
@@ -90,11 +91,12 @@ void update_volume(ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to) {
                 mypinfo[other].total_vol += vsize;
             
         }
-      }
-      mypinfo[from].total_vol -= myrinfo->nnbrs * vsize;
-      mypinfo[to].total_vol += myrinfo->nnbrs * vsize;
+    }
+    vsize = (graph->vsize ? graph->vsize[i] : 1);
+    mypinfo[from].total_vol -= myrinfo->nnbrs * vsize;
+    mypinfo[to].total_vol += myrinfo->nnbrs * vsize;
 
-      if (myrinfo->id == 0)
+    if (myrinfo->id == 0)
         mypinfo[from].total_vol -= vsize;
 }
 
@@ -196,24 +198,38 @@ void testing_vol (ctrl_t *ctrl, graph_t *graph, idx_t i, idx_t to){
     two have the same value then it returns only one of them).
 */
 /**************************************************************************/
-idx_t get_top_pid(ctrl_t *ctrl, graph_t *graph) {
+idx_t *get_top_pid(ctrl_t *ctrl, graph_t *graph, idx_t *partition_vols) {
 
-    idx_t nparts, top_cut_pid;
-    pinfo_t *mypinfo;
-
+    idx_t i, top_volume, nvtxs, nparts, other;
+    idx_t istart, iend, me, j;
+    idx_t *xadj, *where, *marker, *adjncy;
+    
+    nvtxs = graph->nvtxs;
+    xadj    = graph->xadj;
+    where  = graph->where;
     nparts = ctrl->nparts;
-    mypinfo = graph->pcutinfo;
-    top_cut_pid = 0;
+    adjncy  = graph->adjncy;
+    
+    marker = ismalloc(nparts, -1, "ComputeVolume: marker");
+    memset(partition_vols, 0, sizeof(idx_t)*nparts);
+    
+    for (i=0; i<nvtxs; i++) {
+        istart = xadj[i];
+        iend   = xadj[i+1];
+        me = where[i];
+        marker[me] = i;
 
-    for(int pid = 0; pid < nparts; pid++) {
-        if(pid == top_cut_pid) {
-            continue;
-        } else if (mypinfo[pid].total_cut > mypinfo[top_cut_pid].total_cut) {
-            top_cut_pid = pid;
+        for (j=istart; j<iend; j++) {
+            other = where[adjncy[j]];
+            if (marker[other] != i) {
+                marker[other] = i;
+                partition_vols[me] += (graph->vsize ? graph->vsize[i] : 1);
+            }
         }
+        
     }
-
-    return top_cut_pid;
+    gk_free((void **)&marker, LTERM);
+    return partition_vols;
 }
 
 /*************************************************************************/

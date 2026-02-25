@@ -172,7 +172,7 @@ void AllocateKWayPartitionMemory(ctrl_t *ctrl, graph_t *graph)
 /*************************************************************************/
 void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
 {
-  idx_t i, j, k, l, nvtxs, ncon, nparts, nbnd, mincut, me, other;
+  idx_t i, j, k, l, nvtxs, ncon, nparts, nbnd, mincut, minvol, me, other;
   idx_t *xadj, *vwgt, *adjncy, *adjwgt, *pwgts, *where, *bndind, *bndptr;
 
   nparts = ctrl->nparts;
@@ -189,7 +189,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
   bndind = graph->bndind;
   bndptr = iset(nvtxs, -1, graph->bndptr);
 
-  nbnd = mincut = 0;
+  nbnd = mincut = minvol = 0;
 
   /* Compute pwgts */
   if (ncon == 1) {
@@ -355,6 +355,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
             if (marker[k] != i) {
                 marker[k] = i;
                 mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
+                minvol += (graph->vsize ? graph->vsize[i] : 1);
             }
             
           }
@@ -384,15 +385,19 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
             }
             ASSERT(myrinfo->nnbrs <= xadj[i+1]-xadj[i]);
 
-            // if (myrinfo->ed-myrinfo->id >= 0)
-            if(myrinfo->ed > 0)
-                BNDInsert(nbnd, bndind, bndptr, i);
+            // if(myrinfo->ed > 0)
+            //     BNDInsert(nbnd, bndind, bndptr, i);
+                      /* Only ed-id>=0 nodes are considered to be in the boundary */
+
+            if (myrinfo->ed-myrinfo->id >= 0)
+              BNDInsert(nbnd, bndind, bndptr, i);
           } else {
             myrinfo->inbr = -1;
           }
         }
         gk_free((void **)&marker, LTERM);
         graph->mincut = mincut/2;
+        graph->minvol = minvol;
         graph->nbnd   = nbnd;
 
       }
@@ -411,7 +416,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
 /*************************************************************************/
 void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
 {
-  idx_t i, j, k, nvtxs, nbnd, nparts, me, other, istart, iend, tid, ted;
+  idx_t i, j, k, nvtxs, nbnd, nparts, minvol, me, other, istart, iend, tid, ted;
   idx_t *xadj, *adjncy, *adjwgt;
   idx_t *cmap, *where, *bndptr, *bndind, *cwhere, *htable;
   graph_t *cgraph;
@@ -449,7 +454,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
   bndptr = iset(nvtxs, -1, graph->bndptr);
 
   htable = iset(nparts, -1, iwspacemalloc(ctrl, nparts));
-
+  minvol = 0;
   /* Compute the required info for refinement */
   switch (ctrl->objtype) {
     case METIS_OBJTYPE_NVOL:
@@ -476,14 +481,22 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
         for (nbnd=0, i=0; i<nvtxs; i++) {
           istart = xadj[i];
           iend   = xadj[i+1];
-
+          me = where[i];
           myrinfo = graph->ckrinfo+i;
           marker[where[i]] = i;
           
           if (cmap[i] == 0) { /* Interior node. Note that cmap[i] = crinfo[cmap[i]].ed */
 
-            for (tid=0, j=istart; j<iend; j++) 
-              tid += adjwgt[j];
+            for (tid=0, j=istart; j<iend; j++)
+            {
+                tid += adjwgt[j];
+                other = where[adjncy[j]];
+                if (marker[other] != i) {
+                    marker[other] = i;
+                    mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
+                    minvol += (graph->vsize ? graph->vsize[i] : 1);
+                }
+            } 
 
             myrinfo->id   = tid;
             myrinfo->inbr = -1;
@@ -492,13 +505,13 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
             myrinfo->inbr = cnbrpoolGetNext(ctrl, iend-istart);
             mynbrs        = ctrl->cnbrpool + myrinfo->inbr;
 
-            me = where[i];
             for (tid=0, ted=0, j=istart; j<iend; j++) {
               other = where[adjncy[j]];
               
               if (marker[other] != i) {
                 marker[other] = i;
                 mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
+                minvol += (graph->vsize ? graph->vsize[i] : 1);
               }
 
               if (me == other) {
@@ -527,9 +540,8 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
               myrinfo->inbr      = -1;
             }
             else {
-            // ted > 0
-            //   if (ted-tid >= 0)
-                if (ted > 0)
+                // if (ted > 0)
+                if (ted-tid >= 0)
                     BNDInsert(nbnd, bndind, bndptr, i); 
               for (j=0; j<myrinfo->nnbrs; j++)
                 htable[mynbrs[j].pid] = -1;
@@ -538,6 +550,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
         }
         gk_free((void **)&marker, LTERM);
         graph->nbnd = nbnd;
+        graph->minvol = minvol;
       }
       ASSERT(CheckBnd2(graph));
       break;
