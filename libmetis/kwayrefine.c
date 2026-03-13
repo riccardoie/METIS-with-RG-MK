@@ -3,9 +3,9 @@
 \brief Driving routines for multilevel k-way refinement
 
 \date   Started 7/28/1997
-\author George 
-\author  Copyright 1997-2009, Regents of the University of Minnesota 
-\version $Id: kwayrefine.c 20398 2016-11-22 17:17:12Z karypis $ 
+\author George
+\author  Copyright 1997-2009, Regents of the University of Minnesota
+\version $Id: kwayrefine.c 20398 2016-11-22 17:17:12Z karypis $
 */
 
 #include "metislib.h"
@@ -23,42 +23,42 @@ void RefineKWay(ctrl_t *ctrl, graph_t *orggraph, graph_t *graph)
   IFSET(ctrl->dbglvl, METIS_DBG_TIME, gk_startcputimer(ctrl->UncoarsenTmr));
 
   /* Determine how many levels are there */
-  for (ptr=graph, nlevels=0; ptr!=orggraph; ptr=ptr->finer, nlevels++); 
+  for (ptr=graph, nlevels=0; ptr!=orggraph; ptr=ptr->finer, nlevels++);
 
   /* Compute the parameters of the coarsest graph */
   ComputeKWayPartitionParams(ctrl, graph);
 
   /* Try to minimize the sub-domain connectivity */
-  if (ctrl->minconn) 
+  if (ctrl->minconn)
     EliminateSubDomainEdges(ctrl, graph);
-  
+
   /* Deal with contiguity constraints at the beginning */
-  if (contig && FindPartitionInducedComponents(graph, graph->where, NULL, NULL) > ctrl->nparts) { 
+  if (contig && FindPartitionInducedComponents(graph, graph->where, NULL, NULL) > ctrl->nparts) {
     EliminateComponents(ctrl, graph);
 
     ComputeKWayBoundary(ctrl, graph, BNDTYPE_BALANCE);
-    Greedy_KWayOptimize(ctrl, graph, 5, 0, OMODE_BALANCE); 
+    Greedy_KWayOptimize(ctrl, graph, 5, 0, OMODE_BALANCE);
 
     ComputeKWayBoundary(ctrl, graph, BNDTYPE_REFINE);
-    Greedy_KWayOptimize(ctrl, graph, ctrl->niter, 0, OMODE_REFINE); 
+    Greedy_KWayOptimize(ctrl, graph, ctrl->niter, 0, OMODE_REFINE);
 
     ctrl->contig = 0;
   }
 
   /* Refine each successively finer graph */
   for (i=0; ;i++) {
-    if (ctrl->minconn && i == nlevels/2) 
+    if (ctrl->minconn && i == nlevels/2)
       EliminateSubDomainEdges(ctrl, graph);
 
     IFSET(ctrl->dbglvl, METIS_DBG_TIME, gk_startcputimer(ctrl->RefTmr));
 
     if (2*i >= nlevels && !IsBalanced(ctrl, graph, .02)) {
       ComputeKWayBoundary(ctrl, graph, BNDTYPE_BALANCE);
-      Greedy_KWayOptimize(ctrl, graph, 1, 0, OMODE_BALANCE); 
+      Greedy_KWayOptimize(ctrl, graph, 1, 0, OMODE_BALANCE);
       ComputeKWayBoundary(ctrl, graph, BNDTYPE_REFINE);
     }
 
-    Greedy_KWayOptimize(ctrl, graph, ctrl->niter, 5.0, OMODE_REFINE); 
+    Greedy_KWayOptimize(ctrl, graph, ctrl->niter, 5.0, OMODE_REFINE);
 
     IFSET(ctrl->dbglvl, METIS_DBG_TIME, gk_stopcputimer(ctrl->RefTmr));
 
@@ -70,10 +70,10 @@ void RefineKWay(ctrl_t *ctrl, graph_t *orggraph, graph_t *graph)
         if (!IsBalanced(ctrl, graph, .02)) {
           ctrl->contig = 1;
           ComputeKWayBoundary(ctrl, graph, BNDTYPE_BALANCE);
-          Greedy_KWayOptimize(ctrl, graph, 5, 0, OMODE_BALANCE); 
-  
+          Greedy_KWayOptimize(ctrl, graph, 5, 0, OMODE_BALANCE);
+
           ComputeKWayBoundary(ctrl, graph, BNDTYPE_REFINE);
-          Greedy_KWayOptimize(ctrl, graph, ctrl->niter, 0, OMODE_REFINE); 
+          Greedy_KWayOptimize(ctrl, graph, ctrl->niter, 0, OMODE_REFINE);
           ctrl->contig = 0;
         }
       }
@@ -95,18 +95,18 @@ void RefineKWay(ctrl_t *ctrl, graph_t *orggraph, graph_t *graph)
 
   /* Deal with contiguity requirement at the end */
   ctrl->contig = contig;
-  if (contig && FindPartitionInducedComponents(graph, graph->where, NULL, NULL) > ctrl->nparts) 
+  if (contig && FindPartitionInducedComponents(graph, graph->where, NULL, NULL) > ctrl->nparts)
     EliminateComponents(ctrl, graph);
 
   if (!IsBalanced(ctrl, graph, 0.0)) {
     ComputeKWayBoundary(ctrl, graph, BNDTYPE_BALANCE);
-    Greedy_KWayOptimize(ctrl, graph, 10, 0, OMODE_BALANCE); 
+    Greedy_KWayOptimize(ctrl, graph, 10, 0, OMODE_BALANCE);
 
     ComputeKWayBoundary(ctrl, graph, BNDTYPE_REFINE);
-    Greedy_KWayOptimize(ctrl, graph, ctrl->niter, 0, OMODE_REFINE); 
+    Greedy_KWayOptimize(ctrl, graph, ctrl->niter, 0, OMODE_REFINE);
   }
 
-  if (ctrl->contig) 
+  if (ctrl->contig)
     ASSERT(FindPartitionInducedComponents(graph, graph->where, NULL, NULL) == ctrl->nparts);
 //   printf("\nMetis had %d iterations \n", graph->iterations);
   IFSET(ctrl->dbglvl, METIS_DBG_TIME, gk_stopcputimer(ctrl->UncoarsenTmr));
@@ -126,38 +126,36 @@ void AllocateKWayPartitionMemory(ctrl_t *ctrl, graph_t *graph)
 
   switch (ctrl->objtype) {
     case METIS_OBJTYPE_NVOL:
-    case METIS_OBJTYPE_RGMK:
-      graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
+      graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t),
                           "AllocateKWayPartitionMemory: ckrinfo");
-      graph->pcutinfo  = (pinfo_t *)gk_malloc(ctrl->nparts*sizeof(pinfo_t), 
+      graph->pcutinfo  = (pinfo_t *)gk_malloc(ctrl->nparts*sizeof(pinfo_t),
                           "AllocateKWayPartitionMemory: pcutinfo");
-      graph->ref_table  = (refinement_table *)gk_malloc(ctrl->nparts*sizeof(refinement_table), 
-                      "AllocateKWayPartitionMemory: refinement table");
-      graph->vol_ref_table = (vol_refinement_table *)gk_malloc(ctrl->nparts*sizeof(vol_refinement_table), 
+      graph->vol_ref_table = (vol_refinement_table *)gk_malloc(ctrl->nparts*sizeof(vol_refinement_table),
                       "AllocateKWayPartitionMemory: refinement table");
       for (idx_t ind = 0; ind < ctrl->nparts; ind++){
         graph->vol_ref_table[ind].gain_list = ismalloc(ctrl->nparts, 0, "Gain list");
       }
       break;
-
+    case METIS_OBJTYPE_RGMK:
+      graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t),
+                          "AllocateKWayPartitionMemory: ckrinfo");
+      graph->pcutinfo  = (pinfo_t *)gk_malloc(ctrl->nparts*sizeof(pinfo_t),
+                          "AllocateKWayPartitionMemory: pcutinfo");
+      graph->ref_table  = (refinement_table *)gk_malloc(ctrl->nparts*sizeof(refinement_table),
+                      "AllocateKWayPartitionMemory: refinement table");
+      break;
     case METIS_OBJTYPE_CUT:
-        graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t), 
+        graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t),
                           "AllocateKWayPartitionMemory: ckrinfo");
         break;
 
     case METIS_OBJTYPE_VOL:
-      graph->vkrinfo = (vkrinfo_t *)gk_malloc(graph->nvtxs*sizeof(vkrinfo_t), 
+      graph->vkrinfo = (vkrinfo_t *)gk_malloc(graph->nvtxs*sizeof(vkrinfo_t),
                           "AllocateKWayVolPartitionMemory: vkrinfo");
 
       /* This is to let the cut-based -minconn and -contig large-scale graph
          changes to go through */
       graph->ckrinfo = (ckrinfo_t *)graph->vkrinfo;
-      
-      graph->vol_ref_table = (vol_refinement_table *)gk_malloc(ctrl->nparts*sizeof(vol_refinement_table), 
-                      "AllocateKWayPartitionMemory: refinement table");
-      for (idx_t ind = 0; ind < ctrl->nparts; ind++){
-        graph->vol_ref_table[ind].gain_list = ismalloc(ctrl->nparts, 0, "Gain list");
-      }
       break;
 
     default:
@@ -280,16 +278,16 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
         for (i=0; i<nvtxs; i++) {
           me      = where[i];
           myrinfo = graph->vkrinfo+i;
-      
+
           for (j=xadj[i]; j<xadj[i+1]; j++) {
-            if (me == where[adjncy[j]]) 
+            if (me == where[adjncy[j]])
               myrinfo->nid++;
-            else 
+            else
               myrinfo->ned++;
           }
-      
+
           /* Time to compute the particular external degrees */
-          if (myrinfo->ned > 0) { 
+          if (myrinfo->ned > 0) {
             mincut += myrinfo->ned;
 
             myrinfo->inbr = vnbrpoolGetNext(ctrl, xadj[i+1]-xadj[i]);
@@ -319,7 +317,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
           }
         }
         graph->mincut = mincut/2;
-      
+
         ComputeKWayVolGains(ctrl, graph);
       }
       ASSERT(graph->minvol == ComputeVolume(graph, graph->where));
@@ -334,11 +332,11 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
 
         memset(graph->ckrinfo, 0, sizeof(ckrinfo_t)*nvtxs);
         cnbrpoolReset(ctrl);
-        
+
         memset(graph->pcutinfo, 0, sizeof(pinfo_t)*nparts);
         marker = ismalloc(nparts, -1, "ComputeVolume: marker");
         mypinfo = graph->pcutinfo;
-        
+
         for (i=0; i<nvtxs; i++) {
           me      = where[i];
           myrinfo = graph->ckrinfo+i;
@@ -346,7 +344,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
 
           for (j=xadj[i]; j<xadj[i+1]; j++) {
             k = where[adjncy[j]];
-            
+
             if (me == where[adjncy[j]])
               myrinfo->id += adjwgt[j];
             else
@@ -357,7 +355,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
                 mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
                 minvol += (graph->vsize ? graph->vsize[i] : 1);
             }
-            
+
           }
           mypinfo[me].total_cut += myrinfo->ed;
           /* Time to compute the particular external degrees */
@@ -385,12 +383,12 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
             }
             ASSERT(myrinfo->nnbrs <= xadj[i+1]-xadj[i]);
 
-            // if(myrinfo->ed > 0)
-            //     BNDInsert(nbnd, bndind, bndptr, i);
+            if(myrinfo->ed > 0)
+                BNDInsert(nbnd, bndind, bndptr, i);
                       /* Only ed-id>=0 nodes are considered to be in the boundary */
 
-            if (myrinfo->ed-myrinfo->id >= 0)
-              BNDInsert(nbnd, bndind, bndptr, i);
+            // if (myrinfo->ed-myrinfo->id >= 0)
+            //   BNDInsert(nbnd, bndind, bndptr, i);
           } else {
             myrinfo->inbr = -1;
           }
@@ -458,11 +456,11 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
   /* Compute the required info for refinement */
   switch (ctrl->objtype) {
     case METIS_OBJTYPE_NVOL:
-    case METIS_OBJTYPE_RGMK:{                                                   
+    case METIS_OBJTYPE_RGMK:{
         ckrinfo_t *myrinfo;
         cnbr_t *mynbrs;
         pinfo_t *mypinfo;
-        idx_t *marker; 
+        idx_t *marker;
 
         /* go through and project partition and compute id/ed for the nodes */
         for (i=0; i<nvtxs; i++) {
@@ -475,7 +473,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
         memset(graph->pcutinfo, 0, sizeof(pinfo_t)*nparts);
         marker = ismalloc(nparts, -1, "ComputeVolume: marker");
         mypinfo = graph->pcutinfo;
-        
+
         cnbrpoolReset(ctrl);
 
         for (nbnd=0, i=0; i<nvtxs; i++) {
@@ -484,7 +482,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
           me = where[i];
           myrinfo = graph->ckrinfo+i;
           marker[where[i]] = i;
-          
+
           if (cmap[i] == 0) { /* Interior node. Note that cmap[i] = crinfo[cmap[i]].ed */
 
             for (tid=0, j=istart; j<iend; j++)
@@ -496,7 +494,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
                     mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
                     minvol += (graph->vsize ? graph->vsize[i] : 1);
                 }
-            } 
+            }
 
             myrinfo->id   = tid;
             myrinfo->inbr = -1;
@@ -507,7 +505,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
 
             for (tid=0, ted=0, j=istart; j<iend; j++) {
               other = where[adjncy[j]];
-              
+
               if (marker[other] != i) {
                 marker[other] = i;
                 mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
@@ -531,7 +529,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
             }
             myrinfo->id = tid;
             myrinfo->ed = ted;
-            
+
             mypinfo[where[i]].total_cut += myrinfo->ed;
 
             /* Remove space for edegrees if it was interior */
@@ -540,9 +538,9 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
               myrinfo->inbr      = -1;
             }
             else {
-                // if (ted > 0)
-                if (ted-tid >= 0)
-                    BNDInsert(nbnd, bndind, bndptr, i); 
+                // if (ted-tid >= 0)
+                if (ted > 0)
+                    BNDInsert(nbnd, bndind, bndptr, i);
               for (j=0; j<myrinfo->nnbrs; j++)
                 htable[mynbrs[j].pid] = -1;
             }
@@ -576,7 +574,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
           myrinfo = graph->ckrinfo+i;
 
           if (cmap[i] == 0) { /* Interior node. Note that cmap[i] = crinfo[cmap[i]].ed */
-            for (tid=0, j=istart; j<iend; j++) 
+            for (tid=0, j=istart; j<iend; j++)
               tid += adjwgt[j];
 
             myrinfo->id   = tid;
@@ -606,22 +604,22 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
             }
             myrinfo->id = tid;
             myrinfo->ed = ted;
-      
+
             /* Remove space for edegrees if it was interior */
-            if (ted == 0) { 
+            if (ted == 0) {
               ctrl->nbrpoolcpos -= gk_min(nparts, iend-istart);
               myrinfo->inbr      = -1;
             }
             else {
-              if (ted-tid >= 0) 
-                BNDInsert(nbnd, bndind, bndptr, i); 
-      
+              if (ted-tid >= 0)
+                BNDInsert(nbnd, bndind, bndptr, i);
+
               for (j=0; j<myrinfo->nnbrs; j++)
                 htable[mynbrs[j].pid] = -1;
             }
           }
         }
-      
+
         graph->nbnd = nbnd;
       }
       ASSERT(CheckBnd2(graph));
@@ -675,9 +673,9 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
             }
             myrinfo->nid = tid;
             myrinfo->ned = ted;
-      
+
             /* Remove space for edegrees if it was interior */
-            if (ted == 0) { 
+            if (ted == 0) {
               ctrl->nbrpoolcpos -= gk_min(nparts, iend-istart);
               myrinfo->inbr = -1;
             }
@@ -687,7 +685,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
             }
           }
         }
-      
+
         ComputeKWayVolGains(ctrl, graph);
 
         ASSERT(graph->minvol == ComputeVolume(graph, graph->where));
@@ -731,12 +729,12 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
       }
       else { /* BNDTYPE_BALANCE */
         for (i=0; i<nvtxs; i++) {
-          if (graph->ckrinfo[i].ed > 0) 
+          if (graph->ckrinfo[i].ed > 0)
             BNDInsert(nbnd, bndind, bndptr, i);
         }
       }
       break;
-    
+
     case METIS_OBJTYPE_VOL:
       /* Compute the boundary */
       if (bndtype == BNDTYPE_REFINE) {
@@ -747,25 +745,25 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
       }
       else { /* BNDTYPE_BALANCE */
         for (i=0; i<nvtxs; i++) {
-          if (graph->vkrinfo[i].ned > 0) 
+          if (graph->vkrinfo[i].ned > 0)
             BNDInsert(nbnd, bndind, bndptr, i);
         }
       }
       break;
 
     case METIS_OBJTYPE_NVOL:
-    case METIS_OBJTYPE_RGMK:                            
+    case METIS_OBJTYPE_RGMK:
         /* Compute the boundary */
       if (bndtype == BNDTYPE_REFINE) {
-        for (i=0; i<nvtxs; i++) {   
-        // if (graph->ckrinfo[i].ed > 0 && graph->ckrinfo[i].ed-graph->ckrinfo[i].id >= 0)
-           if (graph->ckrinfo[i].ed > 0)             //we want all edge vertices in our boundary
+        for (i=0; i<nvtxs; i++) {
+        //    if (graph->ckrinfo[i].ed > 0)             //we want all edge vertices in our boundary
+        if (graph->ckrinfo[i].ed > 0 && graph->ckrinfo[i].ed > 0)
             BNDInsert(nbnd, bndind, bndptr, i);
         }
       }
       else { /* BNDTYPE_BALANCE */
         for (i=0; i<nvtxs; i++) {
-          if (graph->ckrinfo[i].ed > 0) 
+          if (graph->ckrinfo[i].ed > 0)
             BNDInsert(nbnd, bndind, bndptr, i);
         }
       }
@@ -784,8 +782,8 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
 /*************************************************************************/
 void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
 {
-  idx_t i, ii, j, k, l, nvtxs, nparts, me, other, pid; 
-  idx_t *xadj, *vsize, *adjncy, *adjwgt, *where, 
+  idx_t i, ii, j, k, l, nvtxs, nparts, me, other, pid;
+  idx_t *xadj, *vsize, *adjncy, *adjwgt, *where,
         *bndind, *bndptr, *ophtable;
   vkrinfo_t *myrinfo, *orinfo;
   vnbr_t *mynbrs, *onbrs;
@@ -824,12 +822,12 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
         orinfo = graph->vkrinfo+ii;
         onbrs  = ctrl->vnbrpool + orinfo->inbr;
 
-        for (k=0; k<orinfo->nnbrs; k++) 
+        for (k=0; k<orinfo->nnbrs; k++)
           ophtable[onbrs[k].pid] = k;
         ophtable[other] = 1;  /* this is to simplify coding */
 
         if (me == other) {
-          /* Find which domains 'i' is connected to but 'ii' is not 
+          /* Find which domains 'i' is connected to but 'ii' is not
              and update their gain */
           for (k=0; k<myrinfo->nnbrs; k++) {
             if (ophtable[mynbrs[k].pid] == -1)
@@ -839,26 +837,26 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
         else {
           ASSERT(ophtable[me] != -1);
 
-          if (onbrs[ophtable[me]].ned == 1) { 
+          if (onbrs[ophtable[me]].ned == 1) {
             /* I'm the only connection of 'ii' in 'me' */
             /* Increase the gains for all the common domains between 'i' and 'ii' */
             for (k=0; k<myrinfo->nnbrs; k++) {
-              if (ophtable[mynbrs[k].pid] != -1) 
+              if (ophtable[mynbrs[k].pid] != -1)
                 mynbrs[k].gv += vsize[ii];
             }
           }
           else {
-            /* Find which domains 'i' is connected to and 'ii' is not 
+            /* Find which domains 'i' is connected to and 'ii' is not
                and update their gain */
             for (k=0; k<myrinfo->nnbrs; k++) {
-              if (ophtable[mynbrs[k].pid] == -1) 
+              if (ophtable[mynbrs[k].pid] == -1)
                 mynbrs[k].gv -= vsize[ii];
             }
           }
         }
 
         /* Reset the marker vector */
-        for (k=0; k<orinfo->nnbrs; k++) 
+        for (k=0; k<orinfo->nnbrs; k++)
           ophtable[onbrs[k].pid] = -1;
         ophtable[other] = -1;
       }
@@ -888,7 +886,7 @@ constraints */
 /*************************************************************************/
 int IsBalanced(ctrl_t *ctrl, graph_t *graph, real_t ffactor)
 {
-  return 
-    (ComputeLoadImbalanceDiff(graph, ctrl->nparts, ctrl->pijbm, ctrl->ubfactors) 
+  return
+    (ComputeLoadImbalanceDiff(graph, ctrl->nparts, ctrl->pijbm, ctrl->ubfactors)
          <= ffactor);
 }

@@ -100,6 +100,75 @@
    } while(0) 
 
 
+#define UpdateAdjacentVertexInfoAndBNDNvol(ctrl, vid, adjlen, me, from, to, \
+            myrinfo, ewgt, nbnd, bndptr, bndind, bndtype) \
+   do { \
+     idx_t k; \
+     cnbr_t *mynbrs; \
+     \
+     if (myrinfo->inbr == -1) { \
+       myrinfo->inbr  = cnbrpoolGetNext(ctrl, adjlen); \
+       myrinfo->nnbrs = 0; \
+     } \
+     ASSERT(CheckRInfo(ctrl, myrinfo)); \
+     \
+     mynbrs = ctrl->cnbrpool + myrinfo->inbr; \
+     \
+     /* Update global ID/ED and boundary */ \
+     if (me == from) { \
+       INC_DEC(myrinfo->ed, myrinfo->id, (ewgt)); \
+       if (bndtype == BNDTYPE_REFINE) { \
+         if (myrinfo->ed == 0 && bndptr[(vid)] != -1) \
+           BNDDelete(nbnd, bndind, bndptr, (vid)); \
+       } \
+       else { \
+         if (myrinfo->ed > 0 && bndptr[(vid)] == -1) \
+           BNDInsert(nbnd, bndind, bndptr, (vid)); \
+       } \
+     } \
+     else if (me == to) { \
+       INC_DEC(myrinfo->id, myrinfo->ed, (ewgt)); \
+       if (bndtype == BNDTYPE_REFINE) { \
+         if (myrinfo->ed > 0 && bndptr[(vid)] == -1) \
+           BNDInsert(nbnd, bndind, bndptr, (vid)); \
+       } \
+       else { \
+         if (myrinfo->ed == 0 && bndptr[(vid)] != -1) \
+           BNDDelete(nbnd, bndind, bndptr, (vid)); \
+       } \
+     } \
+     \
+     /* Remove contribution from the .ed of 'from' */ \
+     if (me != from) { \
+       for (k=0; k<myrinfo->nnbrs; k++) { \
+         if (mynbrs[k].pid == from) { \
+           if (mynbrs[k].ed == (ewgt)) \
+             mynbrs[k] = mynbrs[--myrinfo->nnbrs]; \
+           else \
+             mynbrs[k].ed -= (ewgt); \
+           break; \
+         } \
+       } \
+     } \
+     \
+     /* Add contribution to the .ed of 'to' */ \
+     if (me != to) { \
+       for (k=0; k<myrinfo->nnbrs; k++) { \
+         if (mynbrs[k].pid == to) { \
+           mynbrs[k].ed += (ewgt); \
+           break; \
+         } \
+       } \
+       if (k == myrinfo->nnbrs) { \
+         mynbrs[k].pid  = to; \
+         mynbrs[k].ed   = (ewgt); \
+         myrinfo->nnbrs++; \
+       } \
+     } \
+     \
+     ASSERT(CheckRInfo(ctrl, myrinfo));\
+   } while(0) 
+
 #define UpdateAdjacentVertexInfoAndBND(ctrl, vid, adjlen, me, from, to, \
             myrinfo, ewgt, nbnd, bndptr, bndind, bndtype) \
    do { \
@@ -214,6 +283,36 @@
      } \
    } while(0) 
 
+#define UpdateQueueInfoNvol(queue, vstatus, vid, me, from, to, myrinfo, oldnnbrs, \
+            nupd, updptr, updind, bndtype) \
+   do { \
+     real_t rgain; \
+     \
+     if (me == to || me == from || oldnnbrs != myrinfo->nnbrs) {  \
+       rgain = (myrinfo->nnbrs > 0 ?  \
+                1.0*myrinfo->ed/sqrt(myrinfo->nnbrs) : 0.0) - myrinfo->id; \
+   \
+        if (vstatus[(vid)] != VPQSTATUS_EXTRACTED) { \
+            if (graph->bndptr[(vid)] != -1) { /* In-boundary vertex */ \
+                if (vstatus[(vid)] == VPQSTATUS_PRESENT) { \
+                    rpqUpdate(queue, (vid), rgain); \
+                } \
+                else { \
+                    rpqInsert(queue, (vid), rgain); \
+                    vstatus[(vid)] = VPQSTATUS_PRESENT; \
+                    ListInsert(nupd, updind, updptr, (vid)); \
+                } \
+            } \
+            else { /* Off-boundary vertex */ \
+                if (vstatus[(vid)] == VPQSTATUS_PRESENT) { \
+                    rpqDelete(queue, (vid)); \
+                    vstatus[(vid)] = VPQSTATUS_NOTPRESENT; \
+                    ListDelete(nupd, updind, updptr, (vid)); \
+                } \
+            } \
+        } \
+    } \
+} while(0) 
 
 
 /*************************************************************************/

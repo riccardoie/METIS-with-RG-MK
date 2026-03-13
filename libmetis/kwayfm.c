@@ -389,7 +389,7 @@ void Greedy_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         partition_vols = ismalloc(nparts, 0, "ComputeVolume: marker");
         get_top_pid(ctrl, graph, partition_vols);
 
-        for(int pid = 0; pid < nparts; pid++) { 
+        for(int pid = 0; pid < nparts; pid++) {
             printf("\nPartition %d\tVol: %d", pid, partition_vols[pid]);
             if (res < partition_vols[pid])
                 res = partition_vols[pid];
@@ -517,12 +517,12 @@ void Greedy_KWayVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   if (omode == OMODE_REFINE){
     idx_t *partition_vols;
     idx_t res = 0;
-    printf("\nSTART OF REFINEMENT\n");
+    printf("\nSTART OF REFINEMENT(%d)\n",graph->nbnd);
     partition_vols = ismalloc(nparts, 0, "ComputeVolume: marker");
     get_top_pid(ctrl, graph, partition_vols);
 
-    for(int pid = 0; pid < nparts; pid++) { 
-        printf("\nPartition %d\tVol: %d", pid, partition_vols[pid]);
+    for(int pid = 0; pid < nparts; pid++) {
+        // printf("\nPartition %d\tVol: %d", pid, partition_vols[pid]);
         if (res < partition_vols[pid])
             res = partition_vols[pid];
     }
@@ -596,6 +596,8 @@ void Greedy_KWayVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
           if (!safetos[to=mynbrs[k].pid])
             continue;
           gain = mynbrs[k].gv + xgain;
+        //   if (gain >= 0 && pwgts[to]+vwgt <= maxpwgts[to]+ffactor*gain)
+        //     printf("\npwgts[j] %d \tvwgt %d \tmaxpwgts[j]+ffactor*gain %f\n",pwgts[to],vwgt, maxpwgts[to]+ffactor*gain);
           if (gain >= 0 && pwgts[to]+vwgt <= maxpwgts[to]+ffactor*gain)
             break;
         }
@@ -678,7 +680,6 @@ void Greedy_KWayVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       graph->minvol -= (xgain+mynbrs[k].gv);
       where[i] = to;
       nmoved++;
-
       IFSET(ctrl->dbglvl, METIS_DBG_MOVEINFO,
           printf("\t\tMoving %6"PRIDX" from %3"PRIDX" to %3"PRIDX". "
                  "Gain: [%4"PRIDX" %4"PRIDX"]. Cut: %6"PRIDX", Vol: %6"PRIDX"\n",
@@ -740,8 +741,8 @@ void Greedy_KWayVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
     partition_vols = ismalloc(nparts, 0, "ComputeVolume: marker");
     get_top_pid(ctrl, graph, partition_vols);
 
-    for(int pid = 0; pid < nparts; pid++) { 
-        printf("\nPartition %d\tVol: %d", pid, partition_vols[pid]);
+    for(int pid = 0; pid < nparts; pid++) {
+        // printf("\nPartition %d\tVol: %d", pid, partition_vols[pid]);
         if (res < partition_vols[pid])
             res = partition_vols[pid];
     }
@@ -3046,8 +3047,8 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   vol_refinement_table *ref_table;
 
   cnbr_t *mynbrs;
-  
-  ffactor = 0.0;
+
+//   ffactor = 0.0;
   WCOREPUSH;
 
 
@@ -3115,30 +3116,30 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
     bfsmrk = iset(nvtxs, 0, iwspacemalloc(ctrl, nvtxs));
   }
 
-  if (ctrl->dbglvl&METIS_DBG_REFINE) {
-     printf("%s: [%6"PRIDX" %6"PRIDX"]-[%6"PRIDX" %6"PRIDX"], Bal: %5.3"PRREAL","
-            " Nv-Nb[%6"PRIDX" %6"PRIDX"], Cut: %6"PRIDX,
-            (omode == OMODE_REFINE ? "GRC" : "GBC"),
-            pwgts[iargmin(nparts, pwgts,1)], imax(nparts, pwgts,1), minpwgts[0], maxpwgts[0],
-            ComputeLoadImbalance(graph, nparts, ctrl->pijbm),
-            graph->nvtxs, graph->nbnd, graph->mincut);
-     if (ctrl->minconn)
-       printf(", Doms: [%3"PRIDX" %4"PRIDX"]", imax(nparts, nads,1), isum(nparts, nads,1));
-     printf("\n");
-  }
+//   if (ctrl->dbglvl&METIS_DBG_REFINE) {
+//      printf("%s: [%6"PRIDX" %6"PRIDX"]-[%6"PRIDX" %6"PRIDX"], Bal: %5.3"PRREAL","
+//             " Nv-Nb[%6"PRIDX" %6"PRIDX"], Cut: %6"PRIDX,
+//             (omode == OMODE_REFINE ? "GRC" : "GBC"),
+//             pwgts[iargmin(nparts, pwgts,1)], imax(nparts, pwgts,1), minpwgts[0], maxpwgts[0],
+//             ComputeLoadImbalance(graph, nparts, ctrl->pijbm),
+//             graph->nvtxs, graph->nbnd, graph->mincut);
+//      if (ctrl->minconn)
+//        printf(", Doms: [%3"PRIDX" %4"PRIDX"]", imax(nparts, nads,1), isum(nparts, nads,1));
+//      printf("\n");
+//   }
 
   queue = rpqCreate(nvtxs);
 
-//   if (omode == OMODE_REFINE){
-//     printf("\nSTART OF REFINEMENT\n");
-//     idx_t res = 0;
-//     for(int pid = 0; pid < nparts; pid++) {
-//         printf("\nPartition %d\tVol: %d", pid, mypinfo[pid].total_vol);
-//         if (res < mypinfo[pid].total_vol)
-//             res = mypinfo[pid].total_vol;
-//     }
-//     printf("\n\nMAX vol %d\n", res);
-//   }
+  if (omode == OMODE_REFINE && ctrl->dbglvl == METIS_DBG_MOVEINFO){
+    printf("\nSTART OF REFINEMENT(%d)\n",graph->nbnd);
+    idx_t res = 0;
+    for(int pid = 0; pid < nparts; pid++) {
+        // printf("\nPartition %d\tVol: %d", pid, mypinfo[pid].total_vol);
+        if (res < mypinfo[pid].total_vol)
+            res = mypinfo[pid].total_vol;
+    }
+    printf("\n\nMAX vol %d\n", res);
+  }
   /*=====================================================================
   * The top-level refinement loop
   *======================================================================*/
@@ -3150,7 +3151,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
     if (omode == OMODE_BALANCE) {
       /* Check to see if things are out of balance, given the tolerance */
       for (i=0; i<nparts; i++) {
-        if (pwgts[i] > maxpwgts[i] || pwgts[i] < minpwgts[i])
+        if (pwgts[i] > maxpwgts[i])
           break;
       }
       if (i == nparts) /* Things are balanced. Return right away */
@@ -3190,6 +3191,12 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
       from = where[i];
       vwgt = graph->vwgt[i];
+      
+      /* Prevent moves that make 'from' domain underbalanced */
+      if (omode == OMODE_REFINE) {
+        if (myrinfo->id > 0 && pwgts[from]-vwgt < minpwgts[from])
+          continue;
+      }
 
       if (ctrl->contig && IsArticulationNode(i, xadj, adjncy, where, bfslvl, bfsind, bfsmrk))
         continue;
@@ -3200,7 +3207,8 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       /* Find the most promising subdomain to move to */
       if (omode == OMODE_REFINE) {
         compute_potential_move_volume_change(ctrl, graph, i);
-        // printf("\nFROM %d",from);
+
+        // printf("\nFROM %d(%d)",from, i);
         // for (ind = 0; ind < nparts; ind++) {
         //     printf("\nPid %d [ ", ind);
         //     for (pid = 0; pid < nparts; pid++) {
@@ -3215,90 +3223,59 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
         to = -1;
         k = -1;
+        gain = 0;
+
+        idx_t tmp_top_pid = -1; /* Pid of partition w greatest volume after move to 'to' */
+        idx_t tmp_top_vol = -1; /* Actual volume after move */
+        idx_t candidate_top_pid = -1; /* Pid of greatest partition for the candidate destination */
+        idx_t candidate_top_vol = -1; /* Volume of greatest partition for the candidate destination */
+
         for (ind=myrinfo->nnbrs-1; ind>=0; ind--) {
             j = mynbrs[ind].pid;
-            
-            if(graph->pid_top_partition == from){
-                if (to != -1) {
-                    if(ref_table[from].gain_list[j] < ref_table[from].gain_list[to] &&
-                        mypinfo[j].total_vol + ref_table[j].gain_list[j] < mypinfo[graph->pid_top_partition].total_vol &&
-                        pwgts[j]+vwgt <= maxpwgts[j]){
-                        to = j;
-                        k = ind;
-                    } else if (ref_table[from].gain_list[j] == ref_table[from].gain_list[to] &&
-                        mypinfo[j].total_vol + ref_table[j].gain_list[j] < mypinfo[graph->pid_top_partition].total_vol &&
-                        tpwgts[to]*pwgts[j] < tpwgts[j]*pwgts[to]){
-                        to = j;
-                        k = ind;
-                    }
-
-                } else {
-                    if (ref_table[from].gain_list[j] < 0 &&
-                        pwgts[j]+vwgt <= maxpwgts[j] &&
-                        mypinfo[j].total_vol + ref_table[j].gain_list[j] < mypinfo[graph->pid_top_partition].total_vol){
-                        to = j;
-                        k = ind;
-                    }
-                    
+            for(int pid = 0; pid < nparts; pid++) {
+                if (tmp_top_vol < mypinfo[pid].total_vol + ref_table[pid].gain_list[j]) {
+                    tmp_top_vol = mypinfo[pid].total_vol + ref_table[pid].gain_list[j];
+                    tmp_top_pid = pid;
                 }
+                gain += ref_table[pid].gain_list[j];
+            }
+            // printf("\nLooked at destination %d which has top vol %d, Tot gain change %d", j, tmp_top_vol, gain);
+            // printf("\n\tpwgts[j] %d \tvwgt %d \tmaxpwgts[j] %d\tffactor*gain %f",pwgts[j], vwgt, maxpwgts[j], -ffactor*gain);
 
+            if (to == -1 &&
+                mypinfo[graph->pid_top_partition].total_vol >= tmp_top_vol &&
+                pwgts[j]+vwgt <= maxpwgts[j] - ffactor*gain) {
+                to = j;
+                k = ind;
+                candidate_top_pid = tmp_top_pid;
+                candidate_top_vol = tmp_top_vol;
+                // printf("\nChose %d as candidate destination vol %d\n", j, tmp_top_vol);
+
+            } else if (to != -1 &&
+                       candidate_top_vol > tmp_top_vol &&
+                       pwgts[j]+vwgt <= maxpwgts[j]) {
+                to = j;
+                k = ind;
+                candidate_top_pid = tmp_top_pid;
+                candidate_top_vol = tmp_top_vol;
+                // printf("\nChose %d as candidate destination vol %d\n", j, tmp_top_vol);
+
+            } else if (to != -1 &&
+                       candidate_top_vol == tmp_top_vol &&      /* If we improve the balance from previous candidate prioritize this move */
+                       tpwgts[to]*pwgts[j] < tpwgts[j]*pwgts[to]) {
+                to = j;
+                k = ind;
+                candidate_top_pid = tmp_top_pid;
+                candidate_top_vol = tmp_top_vol;
+                // printf("\nChose %d as candidate destination(better balance) vol %d\n", j, tmp_top_vol);
             }
 
-            if (to != -1) {
-                if (mypinfo[to].total_vol < mypinfo[j].total_vol &&
-                    ref_table[j].gain_list[j] < 0 &&
-                    ref_table[from].gain_list[j] <= 0 &&
-                    pwgts[j]+vwgt <= maxpwgts[j]) {
-
-                    if ((mypinfo[j].total_vol + ref_table[j].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[from].total_vol + ref_table[from].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[graph->pid_top_partition].total_vol + ref_table[graph->pid_top_partition].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol)){
-                        to = j;
-                        k = ind;
-                    }
-                } else if (mypinfo[to].total_vol <= mypinfo[j].total_vol &&
-                          (ref_table[j].gain_list[j] < ref_table[to].gain_list[to]) &&
-                           pwgts[j]+vwgt <= maxpwgts[j]) {
-                    if ((mypinfo[j].total_vol + ref_table[j].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[from].total_vol + ref_table[from].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[graph->pid_top_partition].total_vol + ref_table[graph->pid_top_partition].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol)){
-                        to = j;
-                        k = ind;
-                    }
-                } else if (mypinfo[to].total_vol <= mypinfo[j].total_vol &&
-                          (ref_table[j].gain_list[j] <= ref_table[to].gain_list[to]) &&
-                          (mynbrs[ind].ed > mynbrs[k].ed) &&
-                           pwgts[j]+vwgt <= maxpwgts[j]){
-                    if ((mypinfo[j].total_vol + ref_table[j].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[from].total_vol + ref_table[from].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[graph->pid_top_partition].total_vol + ref_table[graph->pid_top_partition].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol)){
-                        to = j;
-                        k = ind;
-                    }
-                
-                } else if (mypinfo[to].total_vol <= mypinfo[j].total_vol &&
-                          (ref_table[j].gain_list[j] <= ref_table[to].gain_list[to]) &&
-                           tpwgts[to]*pwgts[j] < tpwgts[j]*pwgts[to]){
-                    if ((mypinfo[j].total_vol + ref_table[j].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[from].total_vol + ref_table[from].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[graph->pid_top_partition].total_vol + ref_table[graph->pid_top_partition].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol)){
-                        to = j;
-                        k = ind;
-                    }
-                }
-            } else {
-                if (ref_table[j].gain_list[j] <= 0 &&
-                    pwgts[j]+vwgt <= maxpwgts[j]) {
-                    if ((mypinfo[j].total_vol + ref_table[j].gain_list[j] < mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[from].total_vol + ref_table[from].gain_list[j] < mypinfo[graph->pid_top_partition].total_vol) &&
-                        (mypinfo[graph->pid_top_partition].total_vol + ref_table[graph->pid_top_partition].gain_list[j] <= mypinfo[graph->pid_top_partition].total_vol)){
-                        to = j;
-                        k = ind;
-                    }
-                }
-            }
-
+            /* Reset values before looking at another destination */
+            tmp_top_vol = -1;
+            tmp_top_pid = -1;
+            gain = 0;
         }
+        // printf("\n");
 
         if (to == -1)
             continue;
@@ -3332,7 +3309,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         to = mynbrs[k].pid;
         compute_potential_move_volume_change(ctrl, graph, i);
 
-        idx_t gain = 0;
+        gain = 0;
         for (ind = 0; ind < nparts; ind++) {
             gain += ref_table[ind].gain_list[to];
         }
@@ -3341,33 +3318,27 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
              (gain == 0 &&  mynbrs[k].ed-myrinfo->id < 0)))
           continue;
 
-
-        to = mynbrs[k].pid;
         gain = mynbrs[k].ed-myrinfo->id;
         // Update the cut for the affected partitions
         graph->pcutinfo[to].total_cut -= (2 * mynbrs[k].ed - myrinfo->id - myrinfo->ed);
         graph->pcutinfo[from].total_cut -= (myrinfo->ed - myrinfo->id);
-        
-        // for (ind = 0; ind < nparts; ind++) {
-        //     mypinfo[ind].total_vol += ref_table[ind].gain_list[to];
-        //     graph->minvol += ref_table[ind].gain_list[to];
-        // }
       }
-      for (ind = 0; ind < nparts; ind++) {
-            mypinfo[ind].total_vol += ref_table[ind].gain_list[to];
-            graph->minvol += ref_table[ind].gain_list[to];
-            // printf("\nPartition %d\tVol: %d", ind, mypinfo[ind].total_vol);
-      }
-    //   printf("\n");
+
       /*=====================================================================
       * If we got here, we can now move the vertex from 'from' to 'to'
       *======================================================================*/
+
+      for (ind = 0; ind < nparts; ind++) {
+        mypinfo[ind].total_vol += ref_table[ind].gain_list[to];
+        graph->minvol += ref_table[ind].gain_list[to];
+        // printf("\nPartition %d\tVol: %d", ind, mypinfo[ind].total_vol);
+      }
       graph->mincut -= mynbrs[k].ed-myrinfo->id;
       nmoved++;
 
-      IFSET(ctrl->dbglvl, METIS_DBG_MOVEINFO,
-          printf("\t\tMoving %6"PRIDX" from %3"PRIDX"/%"PRIDX" to %3"PRIDX"/%"PRIDX" [%6"PRIDX" %6"PRIDX"]. Gain: %4"PRIDX". Cut: %6"PRIDX"\n",
-              i, from, safetos[from], to, safetos[to], pwgts[from], pwgts[to], mynbrs[k].ed-myrinfo->id, graph->mincut));
+    //   IFSET(ctrl->dbglvl, METIS_DBG_MOVEINFO,
+    //       printf("\t\tMoving %6"PRIDX" from %3"PRIDX"/%"PRIDX" to %3"PRIDX"/%"PRIDX" [%6"PRIDX" %6"PRIDX"]. Gain: %4"PRIDX". Cut: %6"PRIDX"\n",
+    //           i, from, safetos[from], to, safetos[to], pwgts[from], pwgts[to], mynbrs[k].ed-myrinfo->id, graph->mincut));
 
       /* Update the subdomain connectivity information */
       if (ctrl->minconn) {
@@ -3396,10 +3367,10 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
         oldnnbrs = myrinfo->nnbrs;
 
-        UpdateAdjacentVertexInfoAndBND(ctrl, ii, xadj[ii+1]-xadj[ii], me, 
+        UpdateAdjacentVertexInfoAndBNDNvol(ctrl, ii, xadj[ii+1]-xadj[ii], me,
             from, to, myrinfo, adjwgt[j], nbnd, bndptr, bndind, bndtype);
 
-        UpdateQueueInfo(queue, vstatus, ii, me, from, to, myrinfo, oldnnbrs, 
+        UpdateQueueInfoNvol(queue, vstatus, ii, me, from, to, myrinfo, oldnnbrs,
             nupd, updptr, updind, bndtype);
 
         ASSERT(myrinfo->nnbrs <= xadj[ii+1]-xadj[ii]);
@@ -3417,29 +3388,29 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       updptr[updind[i]]  = -1;
     }
 
-    if (ctrl->dbglvl&METIS_DBG_REFINE) {
-       printf("\t[%6"PRIDX" %6"PRIDX"], Bal: %5.3"PRREAL", Nb: %6"PRIDX"."
-              " Nmoves: %5"PRIDX", Cut: %6"PRIDX", Vol: %6"PRIDX,
-              pwgts[iargmin(nparts, pwgts,1)], imax(nparts, pwgts,1),
-              ComputeLoadImbalance(graph, nparts, ctrl->pijbm),
-              graph->nbnd, nmoved, graph->mincut, ComputeVolume(graph, where));
-       if (ctrl->minconn)
-         printf(", Doms: [%3"PRIDX" %4"PRIDX"]", imax(nparts, nads,1), isum(nparts, nads,1));
-       printf("\n");
-    }
+    // if (ctrl->dbglvl&METIS_DBG_REFINE) {
+    //    printf("\t[%6"PRIDX" %6"PRIDX"], Bal: %5.3"PRREAL", Nb: %6"PRIDX"."
+    //           " Nmoves: %5"PRIDX", Cut: %6"PRIDX", Vol: %6"PRIDX,
+    //           pwgts[iargmin(nparts, pwgts,1)], imax(nparts, pwgts,1),
+    //           ComputeLoadImbalance(graph, nparts, ctrl->pijbm),
+    //           graph->nbnd, nmoved, graph->mincut, ComputeVolume(graph, where));
+    //    if (ctrl->minconn)
+    //      printf(", Doms: [%3"PRIDX" %4"PRIDX"]", imax(nparts, nads,1), isum(nparts, nads,1));
+    //    printf("\n");
+    // }
     if (nmoved == 0 || (omode == OMODE_REFINE && graph->mincut == oldcut && graph->minvol == oldvol))
       break;
   }
-//   if (omode == OMODE_REFINE){
-//     idx_t res = 0;
-//     for(int pid = 0; pid < nparts; pid++) {
-//         // printf("\nPartition %d\tVol: %d", pid, mypinfo[pid].total_vol);
-//         if (res < mypinfo[pid].total_vol)
-//             res = mypinfo[pid].total_vol;
-//     }
-//     printf("\nMAX vol %d\n", res);
-//     // printf("\nEND OF REFINEMENT\n");
-//   }
+  if (omode == OMODE_REFINE && ctrl->dbglvl == METIS_DBG_MOVEINFO){
+    idx_t res = 0;
+    for(int pid = 0; pid < nparts; pid++) {
+        // printf("\nPartition %d\tVol: %d", pid, mypinfo[pid].total_vol);
+        if (res < mypinfo[pid].total_vol)
+            res = mypinfo[pid].total_vol;
+    }
+    printf("\nMAX vol %d\n", res);
+    printf("\nEND OF REFINEMENT\n");
+  }
 
   rpqDestroy(queue);
   WCOREPOP;
