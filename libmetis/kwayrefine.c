@@ -126,8 +126,8 @@ void AllocateKWayPartitionMemory(ctrl_t *ctrl, graph_t *graph)
 
   switch (ctrl->objtype) {
     case METIS_OBJTYPE_NVOL:
-      graph->ckrinfo  = (ckrinfo_t *)gk_malloc(graph->nvtxs*sizeof(ckrinfo_t),
-                          "AllocateKWayPartitionMemory: ckrinfo");
+      graph->vkrinfo = (vkrinfo_t *)gk_malloc(graph->nvtxs*sizeof(vkrinfo_t),
+                          "AllocateKWayVolPartitionMemory: vkrinfo");
       graph->pcutinfo  = (pinfo_t *)gk_malloc(ctrl->nparts*sizeof(pinfo_t),
                           "AllocateKWayPartitionMemory: pcutinfo");
       graph->vol_ref_table = (vol_refinement_table *)gk_malloc(ctrl->nparts*sizeof(vol_refinement_table),
@@ -323,6 +323,75 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
       ASSERT(graph->minvol == ComputeVolume(graph, graph->where));
       break;
     case METIS_OBJTYPE_NVOL:
+    {
+        vkrinfo_t *myrinfo;
+        vnbr_t *mynbrs;
+        pinfo_t *mypinfo;
+        idx_t *marker;
+
+        memset(graph->vkrinfo, 0, sizeof(vkrinfo_t)*nvtxs);
+        vnbrpoolReset(ctrl);
+
+        memset(graph->pcutinfo, 0, sizeof(pinfo_t)*nparts);
+        marker = ismalloc(nparts, -1, "ComputeVolume: marker");
+        mypinfo = graph->pcutinfo;
+
+        /* Compute now the id/ed degrees */
+        for (i=0; i<nvtxs; i++) {
+          me      = where[i];
+          myrinfo = graph->vkrinfo+i;
+          marker[me] = i;
+
+          for (j=xadj[i]; j<xadj[i+1]; j++) {
+            k = where[adjncy[j]];
+
+            if (me == where[adjncy[j]])
+              myrinfo->nid++;
+            else
+              myrinfo->ned++;
+
+            if (marker[k] != i) {
+                marker[k] = i;
+                mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
+            }
+          }
+          mypinfo[me].total_cut += myrinfo->ned;
+          /* Time to compute the particular external degrees */
+          if (myrinfo->ned > 0) {
+            mincut += myrinfo->ned;
+
+            myrinfo->inbr = vnbrpoolGetNext(ctrl, xadj[i+1]-xadj[i]);
+            mynbrs        = ctrl->vnbrpool + myrinfo->inbr;
+
+            for (j=xadj[i]; j<xadj[i+1]; j++) {
+              other = where[adjncy[j]];
+              if (me != other) {
+                for (k=0; k<myrinfo->nnbrs; k++) {
+                  if (mynbrs[k].pid == other) {
+                    mynbrs[k].ned++;
+                    break;
+                  }
+                }
+                if (k == myrinfo->nnbrs) {
+                  mynbrs[k].gv  = 0;
+                  mynbrs[k].pid = other;
+                  mynbrs[k].ned = 1;
+                  myrinfo->nnbrs++;
+                }
+              }
+            }
+            ASSERT(myrinfo->nnbrs <= xadj[i+1]-xadj[i]);
+          }
+          else {
+            myrinfo->inbr = -1;
+          }
+        }
+        graph->mincut = mincut/2;
+        gk_free((void **)&marker, LTERM);
+        ComputeKWayVolGains(ctrl, graph);
+    }
+      ASSERT(graph->minvol == ComputeVolume(graph, graph->where));
+      break;
     case METIS_OBJTYPE_RGMK:
         {
         ckrinfo_t *myrinfo;
@@ -455,7 +524,6 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
   minvol = 0;
   /* Compute the required info for refinement */
   switch (ctrl->objtype) {
-    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_RGMK:{
         ckrinfo_t *myrinfo;
         cnbr_t *mynbrs;
@@ -624,6 +692,93 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
       }
       ASSERT(CheckBnd2(graph));
       break;
+    case METIS_OBJTYPE_NVOL:
+      {
+       vkrinfo_t *myrinfo;
+        vnbr_t *mynbrs;
+        pinfo_t *mypinfo;
+        idx_t *marker;
+
+        /* go through and project partition and compute id/ed for the nodes */
+        for (i=0; i<nvtxs; i++) {
+          k        = cmap[i];
+          where[i] = cwhere[k];
+          cmap[i]  = (dropedges ? 1 : cgraph->vkrinfo[k].ned);  /* For optimization */
+        }
+
+        memset(graph->vkrinfo, 0, sizeof(vkrinfo_t)*nvtxs);
+        memset(graph->pcutinfo, 0, sizeof(pinfo_t)*nparts);
+        marker = ismalloc(nparts, -1, "ComputeVolume: marker");
+        mypinfo = graph->pcutinfo;
+        vnbrpoolReset(ctrl);
+
+        for (i=0; i<nvtxs; i++) {
+          istart = xadj[i];
+          iend   = xadj[i+1];
+          myrinfo = graph->vkrinfo+i;
+          marker[where[i]] = i;
+          me = where[i];
+          if (cmap[i] == 0) { /* Note that cmap[i] = crinfo[cmap[i]].ed */
+            myrinfo->nid  = iend-istart;
+            myrinfo->inbr = -1;
+
+            for (tid=0, ted=0, j=istart; j<iend; j++) {
+                other = where[adjncy[j]];
+                if (marker[other] != i) {
+                    marker[other] = i;
+                    mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
+                }
+            }
+          }
+          else { /* Potentially an interface node */
+            myrinfo->inbr = vnbrpoolGetNext(ctrl, iend-istart);
+            mynbrs        = ctrl->vnbrpool + myrinfo->inbr;
+
+            // me = where[i];
+            for (tid=0, ted=0, j=istart; j<iend; j++) {
+              other = where[adjncy[j]];
+              if (me == other) {
+                tid++;
+              }
+              else {
+                ted++;
+                if ((k = htable[other]) == -1) {
+                  htable[other]                = myrinfo->nnbrs;
+                  mynbrs[myrinfo->nnbrs].gv    = 0;
+                  mynbrs[myrinfo->nnbrs].pid   = other;
+                  mynbrs[myrinfo->nnbrs++].ned = 1;
+                }
+                else {
+                  mynbrs[k].ned++;
+                }
+              }
+
+              if (marker[other] != i) {
+                    marker[other] = i;
+                    mypinfo[me].total_vol += (graph->vsize ? graph->vsize[i] : 1);
+              }
+            }
+            myrinfo->nid = tid;
+            myrinfo->ned = ted;
+            mypinfo[where[i]].total_cut += myrinfo->ned;
+
+            /* Remove space for edegrees if it was interior */
+            if (ted == 0) {
+              ctrl->nbrpoolcpos -= gk_min(nparts, iend-istart);
+              myrinfo->inbr = -1;
+            }
+            else {
+              for (j=0; j<myrinfo->nnbrs; j++)
+                htable[mynbrs[j].pid] = -1;
+            }
+          }
+        }
+        gk_free((void **)&marker, LTERM);
+        ComputeKWayVolGains(ctrl, graph);
+
+        ASSERT(graph->minvol == ComputeVolume(graph, graph->where));
+      }
+      break;
     case METIS_OBJTYPE_VOL:
       {
         vkrinfo_t *myrinfo;
@@ -734,7 +889,7 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
         }
       }
       break;
-
+    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_VOL:
       /* Compute the boundary */
       if (bndtype == BNDTYPE_REFINE) {
@@ -751,7 +906,6 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
       }
       break;
 
-    case METIS_OBJTYPE_NVOL:
     case METIS_OBJTYPE_RGMK:
         /* Compute the boundary */
       if (bndtype == BNDTYPE_REFINE) {

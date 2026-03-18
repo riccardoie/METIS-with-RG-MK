@@ -211,7 +211,7 @@ void EliminateSubDomainEdges(ctrl_t *ctrl, graph_t *graph)
   xadj   = graph->xadj;
   adjncy = graph->adjncy;
   vwgt   = graph->vwgt;
-  adjwgt = (ctrl->objtype == METIS_OBJTYPE_VOL) ? NULL : graph->adjwgt;
+  adjwgt = (ctrl->objtype == METIS_OBJTYPE_VOL || ctrl->objtype == METIS_OBJTYPE_NVOL) ? NULL : graph->adjwgt;
 
   where = graph->where;
   pwgts = graph->pwgts;  /* We assume that this is properly initialized */
@@ -231,7 +231,7 @@ void EliminateSubDomainEdges(ctrl_t *ctrl, graph_t *graph)
   pind = iwspacemalloc(ctrl, nvtxs);
   iarray2csr(nvtxs, nparts, where, pptr, pind);
 
-  if (ctrl->objtype == METIS_OBJTYPE_VOL) {
+  if (ctrl->objtype == METIS_OBJTYPE_VOL || ctrl->objtype == METIS_OBJTYPE_NVOL) {
     /* Vol-refinement specific working arrays */
     modind  = iwspacemalloc(ctrl, nvtxs);
     vmarker = iset(nvtxs, 0, iwspacemalloc(ctrl, nvtxs));
@@ -445,11 +445,11 @@ void EliminateSubDomainEdges(ctrl_t *ctrl, graph_t *graph)
          following variables are valid */
       if (target != -1) {
         switch (ctrl->objtype) {
-          case METIS_OBJTYPE_NVOL:
           case METIS_OBJTYPE_RGMK:                                              //for now does the same as rgmk
           case METIS_OBJTYPE_CUT:
             MoveGroupMinConnForCut(ctrl, graph, target, nind, ind);
             break;
+          case METIS_OBJTYPE_NVOL:
           case METIS_OBJTYPE_VOL:
             MoveGroupMinConnForVol(ctrl, graph, target, nind, ind, vmarker, 
                 pmarker, modind);

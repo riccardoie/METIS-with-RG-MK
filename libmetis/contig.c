@@ -380,7 +380,7 @@ void EliminateComponents(ctrl_t *ctrl, graph_t *graph)
     todo     = iwspacemalloc(ctrl, ncmps);
     cand     = (rkv_t *)wspacemalloc(ctrl, nparts*sizeof(rkv_t));
 
-    if (ctrl->objtype == METIS_OBJTYPE_VOL) {
+    if (ctrl->objtype == METIS_OBJTYPE_VOL || ctrl->objtype == METIS_OBJTYPE_NVOL) {
       /* Vol-refinement specific working arrays */
       modind  = iwspacemalloc(ctrl, nvtxs);
       vmarker = iset(nvtxs, 0, iwspacemalloc(ctrl, nvtxs));
@@ -492,13 +492,12 @@ void EliminateComponents(ctrl_t *ctrl, graph_t *graph)
             case METIS_OBJTYPE_CUT:
               MoveGroupContigForCut(ctrl, graph, target, cid, cptr, cind);
               break;
-
+            case METIS_OBJTYPE_NVOL:
             case METIS_OBJTYPE_VOL:
               MoveGroupContigForVol(ctrl, graph, target, cid, cptr, cind, 
                   vmarker, pmarker, modind);
               break;
 
-            case METIS_OBJTYPE_NVOL:
             case METIS_OBJTYPE_RGMK:
               MoveGroupContigForCut(ctrl, graph, target, cid, cptr, cind);
               break;
