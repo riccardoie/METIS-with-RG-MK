@@ -86,6 +86,7 @@ typedef struct vkrinfo_t {
  idx_t nnbrs;          	/*!< The number of neighboring subdomains */
  idx_t inbr;            /*!< The index in the vnbr_t array where the nnbrs list 
                              of neighbors is stored */
+ idx_t *gain_table;
 } vkrinfo_t;
 
 

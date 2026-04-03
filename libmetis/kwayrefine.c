@@ -278,7 +278,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
         for (i=0; i<nvtxs; i++) {
           me      = where[i];
           myrinfo = graph->vkrinfo+i;
-
+          myrinfo->gain_table = NULL;
           for (j=xadj[i]; j<xadj[i+1]; j++) {
             if (me == where[adjncy[j]])
               myrinfo->nid++;
@@ -341,7 +341,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
           me      = where[i];
           myrinfo = graph->vkrinfo+i;
           marker[me] = i;
-
+          myrinfo->gain_table = NULL;
           for (j=xadj[i]; j<xadj[i+1]; j++) {
             k = where[adjncy[j]];
 
@@ -716,6 +716,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
           istart = xadj[i];
           iend   = xadj[i+1];
           myrinfo = graph->vkrinfo+i;
+          myrinfo->gain_table = NULL;
           marker[where[i]] = i;
           me = where[i];
           if (cmap[i] == 0) { /* Note that cmap[i] = crinfo[cmap[i]].ed */
@@ -798,6 +799,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
           istart = xadj[i];
           iend   = xadj[i+1];
           myrinfo = graph->vkrinfo+i;
+          myrinfo->gain_table = NULL;
 
           if (cmap[i] == 0) { /* Note that cmap[i] = crinfo[cmap[i]].ed */
             myrinfo->nid  = iend-istart;
@@ -936,9 +938,10 @@ void ComputeKWayBoundary(ctrl_t *ctrl, graph_t *graph, idx_t bndtype)
 /*************************************************************************/
 void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
 {
-  idx_t i, ii, j, k, l, nvtxs, nparts, me, other, pid;
+  idx_t i, ii, j, k, l, nvtxs, nparts, me, other, pid, index_nbr;
   idx_t *xadj, *vsize, *adjncy, *adjwgt, *where,
         *bndind, *bndptr, *ophtable;
+  idx_t *gain_table;
   vkrinfo_t *myrinfo, *orinfo;
   vnbr_t *mynbrs, *onbrs;
 
@@ -951,7 +954,7 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
   vsize  = graph->vsize;
   adjncy = graph->adjncy;
   adjwgt = graph->adjwgt;
-
+  index_nbr = -1;
   where  = graph->where;
   bndind = graph->bndind;
   bndptr = iset(nvtxs, -1, graph->bndptr);
@@ -963,11 +966,16 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
   for (i=0; i<nvtxs; i++) {
     myrinfo     = graph->vkrinfo+i;
     myrinfo->gv = IDX_MIN;
-
+    
+    if (myrinfo->gain_table != NULL) {
+        gk_free((void **)&myrinfo->gain_table, LTERM);
+    }
+    
     if (myrinfo->nnbrs > 0) {
       me     = where[i];
       mynbrs = ctrl->vnbrpool + myrinfo->inbr;
-
+      myrinfo->gain_table = ismalloc(myrinfo->nnbrs * (myrinfo->nnbrs + 1), 0,
+                            "ComputeKWayVolGains: gain table");
       graph->minvol += myrinfo->nnbrs*vsize[i];
 
       for (j=xadj[i]; j<xadj[i+1]; j++) {
@@ -976,6 +984,13 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
         orinfo = graph->vkrinfo+ii;
         onbrs  = ctrl->vnbrpool + orinfo->inbr;
 
+        for (k=0; k<myrinfo->nnbrs; k++) {
+            if (mynbrs[k].pid == other) {
+                index_nbr = k;
+                break;
+            }
+        }
+        
         for (k=0; k<orinfo->nnbrs; k++)
           ophtable[onbrs[k].pid] = k;
         ophtable[other] = 1;  /* this is to simplify coding */
@@ -984,31 +999,48 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
           /* Find which domains 'i' is connected to but 'ii' is not
              and update their gain */
           for (k=0; k<myrinfo->nnbrs; k++) {
-            if (ophtable[mynbrs[k].pid] == -1)
+            if (ophtable[mynbrs[k].pid] == -1){
               mynbrs[k].gv -= vsize[ii];
+              myrinfo->gain_table[k] -= vsize[ii];
+            }
           }
         }
         else {
-          ASSERT(ophtable[me] != -1);
+          ASSERT(ophtable[me] != -1 || index_nbr != -1);
 
           if (onbrs[ophtable[me]].ned == 1) {
             /* I'm the only connection of 'ii' in 'me' */
             /* Increase the gains for all the common domains between 'i' and 'ii' */
             for (k=0; k<myrinfo->nnbrs; k++) {
-              if (ophtable[mynbrs[k].pid] != -1)
+              if (ophtable[mynbrs[k].pid] != -1){
                 mynbrs[k].gv += vsize[ii];
+                myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] += vsize[ii];
+              }
             }
           }
           else {
             /* Find which domains 'i' is connected to and 'ii' is not
                and update their gain */
             for (k=0; k<myrinfo->nnbrs; k++) {
-              if (ophtable[mynbrs[k].pid] == -1)
+              if (ophtable[mynbrs[k].pid] == -1) {
                 mynbrs[k].gv -= vsize[ii];
+                myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] -= vsize[ii];
+              }
             }
           }
         }
-
+        // printf("\nNew approach (%d)", myrinfo->nnbrs);
+        // printf("\n[");
+        // for (k=0; k<(myrinfo->nnbrs + 1) * myrinfo->nnbrs; k++) {
+        //     printf("%d\t", myrinfo->gain_table[k]);
+        // }
+        // printf("]");
+        // printf("\nGv Vector");
+        // printf("\n[");
+        // for (k=0; k<myrinfo->nnbrs; k++) {
+        //     printf("%d\t",mynbrs[k].gv);        
+        // }
+        // printf("]\n");
         /* Reset the marker vector */
         for (k=0; k<orinfo->nnbrs; k++)
           ophtable[onbrs[k].pid] = -1;
@@ -1019,6 +1051,12 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
       for (k=0; k<myrinfo->nnbrs; k++) {
         if (mynbrs[k].gv > myrinfo->gv)
           myrinfo->gv = mynbrs[k].gv;
+
+        myrinfo->gain_table[k] += myrinfo->nnbrs * vsize[i];
+        myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] -= myrinfo->nnbrs * vsize[i];
+        
+        if (myrinfo->nid == 0)
+            myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs] += vsize[i];
       }
 
       /* Add the extra gain due to id == 0 */
