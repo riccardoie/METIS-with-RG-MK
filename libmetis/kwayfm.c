@@ -1556,6 +1556,7 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
          idx_t *modind)
 {
   idx_t i, ii, iii, j, jj, k, kk, l, u, nmod, other, me, myidx;
+  idx_t index_nbr;  /* add this here */
   idx_t *xadj, *vsize, *adjncy, *where;
   vkrinfo_t *myrinfo, *orinfo;
   vnbr_t *mynbrs, *onbrs;
@@ -1640,7 +1641,8 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
     me = where[ii];
 
     if (!vmarker[ii]) {  /* The marking is done for boundary and max gv calculations */
-      vmarker[ii] = 2;
+    //   vmarker[ii] = 2;
+      vmarker[ii] = 1;
       modind[nmod++] = ii;
     }
 
@@ -1675,7 +1677,8 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
                 if (onbrs[kk].pid == from) {
                   onbrs[kk].gv -= vsize[ii];
                   if (!vmarker[u]) { /* Need to update boundary etc */
-                    vmarker[u]      = 2;
+                    // vmarker[u]      = 2;
+                    vmarker[u]      = 1;
                     modind[nmod++] = u;
                   }
                   break;
@@ -1706,7 +1709,8 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
                     onbrs[kk].gv += vsize[ii];
 
                   if (!vmarker[u]) { /* Need to update boundary etc */
-                    vmarker[u]     = 2;
+                    // vmarker[u]     = 2;
+                    vmarker[u]     = 1;
                     modind[nmod++] = u;
                   }
                   break;
@@ -1740,7 +1744,8 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
                   onbrs[kk].gv -= vsize[ii];
 
                 if (!vmarker[u]) { /* Need to update boundary etc */
-                  vmarker[u]      = 2;
+                //   vmarker[u]      = 2;
+                  vmarker[u]     = 1;
                   modind[nmod++] = u;
                 }
                 break;
@@ -1767,7 +1772,8 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
             if (onbrs[kk].pid == to) {
               onbrs[kk].gv += vsize[ii];
               if (!vmarker[u]) { /* Need to update boundary etc */
-                vmarker[u] = 2;
+                // vmarker[u] = 2;
+                vmarker[u]     = 1;
                 modind[nmod++] = u;
               }
               break;
@@ -1838,12 +1844,27 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
     if (vmarker[i] == 1) {  /* Only complete gain updates go through */
       for (k=0; k<myrinfo->nnbrs; k++)
         mynbrs[k].gv = 0;
-
+        
+      /* Reallocate gain_table since nnbrs may have changed */
+      if (myrinfo->gain_table != NULL)
+          gk_free((void **)&myrinfo->gain_table, LTERM);
+      
+      myrinfo->gain_table = ismalloc(myrinfo->nnbrs * (myrinfo->nnbrs + 1), 0,
+                          "KWayVolUpdate: gain table");
+      
       for (j=xadj[i]; j<xadj[i+1]; j++) {
         ii     = adjncy[j];
         other  = where[ii];
         orinfo = graph->vkrinfo+ii;
         onbrs  = ctrl->vnbrpool + orinfo->inbr;
+
+        index_nbr = -1;
+        for (kk=0; kk<myrinfo->nnbrs; kk++) {
+          if (mynbrs[kk].pid == other) {
+            index_nbr = kk;
+            break;
+          }
+        }
 
         for (kk=0; kk<orinfo->nnbrs; kk++)
           pmarker[onbrs[kk].pid] = kk;
@@ -1852,26 +1873,32 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
         if (me == other) {
           /* Find which domains 'i' is connected and 'ii' is not and update their gain */
           for (k=0; k<myrinfo->nnbrs; k++) {
-            if (pmarker[mynbrs[k].pid] == -1)
+            if (pmarker[mynbrs[k].pid] == -1) {
               mynbrs[k].gv -= vsize[ii];
+              myrinfo->gain_table[k] -= vsize[ii];
+            }
           }
         }
         else {
-          ASSERT(pmarker[me] != -1);
+          ASSERT(pmarker[me] != -1 || index_nbr != -1);
 
           /* I'm the only connection of 'ii' in 'me' */
           if (onbrs[pmarker[me]].ned == 1) {
             /* Increase the gains for all the common domains between 'i' and 'ii' */
             for (k=0; k<myrinfo->nnbrs; k++) {
-              if (pmarker[mynbrs[k].pid] != -1)
+              if (pmarker[mynbrs[k].pid] != -1) {
                 mynbrs[k].gv += vsize[ii];
+                myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] += vsize[ii];
+              }
             }
           }
           else {
             /* Find which domains 'i' is connected and 'ii' is not and update their gain */
             for (k=0; k<myrinfo->nnbrs; k++) {
-              if (pmarker[mynbrs[k].pid] == -1)
+              if (pmarker[mynbrs[k].pid] == -1) {
                 mynbrs[k].gv -= vsize[ii];
+                myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] -= vsize[ii];
+              }
             }
           }
         }
@@ -1881,6 +1908,15 @@ void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
         pmarker[other] = -1;
 
       }
+    for (k=0; k<myrinfo->nnbrs; k++) {
+            myrinfo->gain_table[k] += myrinfo->nnbrs * vsize[i];
+            myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] -= myrinfo->nnbrs * vsize[i];
+        }
+
+        if (myrinfo->ned > 0 && myrinfo->nid == 0) {
+            for (k=0; k<myrinfo->nnbrs; k++)
+                myrinfo->gain_table[k] += vsize[i];
+        }
     }
 
     /* Compute the overall gv for that node */
@@ -3210,12 +3246,16 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
             printf("]");
         }
         printf("\n");
-        printf("\nGv Vector");
-        printf("\n[");
-        for (k=0; k<myrinfo->nnbrs; k++) {
-            printf("Pid %d: %d\t",mynbrs[k].pid, mynbrs[k].gv);        
+        printf("\nNew version");
+        
+        for (k=0; k<myrinfo->nnbrs + 1; k++) {
+            printf("\n[");
+            for (ind=0; ind<myrinfo->nnbrs; ind++) {
+                printf("%d\t",myrinfo->gain_table[k * myrinfo->nnbrs + ind]);
+            }        
+            printf("]\n");
         }
-        printf("]\n");
+        
         to = -1;
         k = -1;
         gain = 0;
@@ -3325,6 +3365,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       /*=====================================================================
       * If we got here, we can now move the vertex from 'from' to 'to'
       *======================================================================*/
+      printf("\nMOVED\n");
       INC_DEC(pwgts[to], pwgts[from], vwgt);
       graph->mincut -= mynbrs[k].ned-myrinfo->nid;
       graph->minvol -= (xgain+mynbrs[k].gv);
