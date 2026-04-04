@@ -1056,7 +1056,7 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
         myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] -= myrinfo->nnbrs * vsize[i];
         
         if (myrinfo->nid == 0)
-            myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs] += vsize[i];
+            myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] += vsize[i];
       }
 
       /* Add the extra gain due to id == 0 */

@@ -3063,7 +3063,8 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
          real_t ffactor, idx_t omode)
 {
   /* Common variables to all types of kway-refinement/balancing routines */
-  idx_t i, ii, iii, j, k, l, pass, nvtxs, nparts, gain;
+  idx_t i, ii, iii, j, k, l, pass, nvtxs, nparts, gain, row;
+  idx_t pid, tmp_top_pid, tmp_top_vol, candidate_top_pid, candidate_top_vol, candidate_gain;
   idx_t from, me, to, oldcut, vwgt, ind;
   idx_t *xadj, *adjncy;
   idx_t *where, *pwgts, *perm, *bndptr, *bndind, *minpwgts, *maxpwgts;
@@ -3235,47 +3236,41 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
       /* Find the most promising subdomain to move to */
       if (omode == OMODE_REFINE) {
-        compute_potential_move_volume_change(ctrl, graph, i);
 
-        printf("\nGain table(Nbrs %d; FROM %d)", myrinfo->nnbrs, from);
-        for (idx_t i = 0; i < nparts; i++){
-            printf("\n[");
-            for (idx_t dest = 0; dest < nparts; dest++){
-                printf("%d\t", ref_table[i].gain_list[dest]);
-            }
-            printf("]");
-        }
-        printf("\n");
-        printf("\nNew version");
-        
-        for (k=0; k<myrinfo->nnbrs + 1; k++) {
-            printf("\n[");
-            for (ind=0; ind<myrinfo->nnbrs; ind++) {
-                printf("%d\t",myrinfo->gain_table[k * myrinfo->nnbrs + ind]);
-            }        
-            printf("]\n");
-        }
-        
         to = -1;
         k = -1;
         gain = 0;
 
-        idx_t tmp_top_pid = -1; /* Pid of partition w greatest volume after move to 'to' */
-        idx_t tmp_top_vol = -1; /* Actual volume after move */
-        idx_t candidate_top_pid = -1; /* Pid of greatest partition for the candidate destination */
-        idx_t candidate_top_vol = -1; /* Volume of greatest partition for the candidate destination */
+        tmp_top_pid = -1; /* Pid of partition w greatest volume after move to 'to' */
+        tmp_top_vol = -1; /* Actual volume after move */
+        candidate_top_pid = -1; /* Pid of greatest partition for the candidate destination */
+        candidate_top_vol = -1; /* Volume of greatest partition for the candidate destination */
+        candidate_gain = 0;
+        row;
 
-        for (ind=myrinfo->nnbrs-1; ind>=0; ind--) {
+        graph->pid_top_partition = from;
+        for (ind=0; ind<myrinfo->nnbrs; ind++) {
+            pid = mynbrs[ind].pid;
+            if(mypinfo[pid].total_vol > mypinfo[graph->pid_top_partition].total_vol)
+                graph->pid_top_partition = pid;
+        }
+
+
+        for (ind=0; ind<myrinfo->nnbrs; ind++) {
             j = mynbrs[ind].pid;
-            for(int pid = 0; pid < nparts; pid++) {
-                if (tmp_top_vol < mypinfo[pid].total_vol - ref_table[pid].gain_list[j]) {
-                    tmp_top_vol = mypinfo[pid].total_vol - ref_table[pid].gain_list[j];
+            for(row=0; row < myrinfo->nnbrs + 1; row++) {
+                if(row == 0) {
+                    pid = from;
+                } else {
+                    pid = mynbrs[row - 1].pid;
+                }
+
+                if (tmp_top_vol < mypinfo[pid].total_vol - myrinfo->gain_table[row * myrinfo->nnbrs + ind]) {
+                    tmp_top_vol = mypinfo[pid].total_vol - myrinfo->gain_table[row * myrinfo->nnbrs + ind];
                     tmp_top_pid = pid;
                 }
-                gain += ref_table[pid].gain_list[j];
+                gain += myrinfo->gain_table[row * myrinfo->nnbrs + ind];
             }
-            // printf("\nLooked at destination %d which has top vol %d, Tot gain change %d", j, tmp_top_vol, gain);
-            // printf("\n\tpwgts[j] %d \tvwgt %d \tmaxpwgts[j] %d\tffactor*gain %f",pwgts[j], vwgt, maxpwgts[j], -ffactor*gain);
 
             if (to == -1 &&
                 mypinfo[graph->pid_top_partition].total_vol >= tmp_top_vol &&
@@ -3284,25 +3279,47 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
                 k = ind;
                 candidate_top_pid = tmp_top_pid;
                 candidate_top_vol = tmp_top_vol;
-                // printf("\nChose %d as candidate destination vol %d\n", j, tmp_top_vol);
+                candidate_gain = gain;
 
             } else if (to != -1 &&
                        candidate_top_vol > tmp_top_vol &&
+                       pwgts[j]+vwgt <= maxpwgts[j] + ffactor*gain) {
+                to = j;
+                k = ind;
+                candidate_top_pid = tmp_top_pid;
+                candidate_top_vol = tmp_top_vol;
+                candidate_gain = gain;
+            } else if (to != -1 &&
+                    candidate_top_vol == tmp_top_vol &&      /* If we improve the balance from previous candidate prioritize this move */
+                    candidate_gain < gain &&
+                    pwgts[j]+vwgt <= maxpwgts[j]) {
+                to = j;
+                k = ind;
+                candidate_top_pid = tmp_top_pid;
+                candidate_top_vol = tmp_top_vol;
+                candidate_gain = gain;
+
+            } else if (to != -1 &&
+                       candidate_top_vol == tmp_top_vol &&      /* If we improve the balance from previous candidate prioritize this move */
+                       candidate_gain == gain &&
+                        mynbrs[k].ned < mynbrs[ind].ned &&
                        pwgts[j]+vwgt <= maxpwgts[j]) {
                 to = j;
                 k = ind;
                 candidate_top_pid = tmp_top_pid;
                 candidate_top_vol = tmp_top_vol;
-                // printf("\nChose %d as candidate destination vol %d\n", j, tmp_top_vol);
-
-            } else if (to != -1 &&
+                candidate_gain = gain;
+            } 
+            else if (to != -1 &&
                        candidate_top_vol == tmp_top_vol &&      /* If we improve the balance from previous candidate prioritize this move */
+                       candidate_gain == gain &&
+                       mynbrs[k].ned == mynbrs[ind].ned &&
                        tpwgts[to]*pwgts[j] < tpwgts[j]*pwgts[to]) {
                 to = j;
                 k = ind;
                 candidate_top_pid = tmp_top_pid;
                 candidate_top_vol = tmp_top_vol;
-                // printf("\nChose %d as candidate destination(better balance) vol %d\n", j, tmp_top_vol);
+                candidate_gain = gain;
             }
 
             /* Reset values before looking at another destination */
@@ -3310,7 +3327,6 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
             tmp_top_pid = -1;
             gain = 0;
         }
-        // printf("\n");
 
         if (to == -1)
             continue;
@@ -3321,7 +3337,6 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         graph->pcutinfo[to].total_cut -= (2 * mynbrs[k].ned - myrinfo->nid - myrinfo->ned);
         graph->pcutinfo[from].total_cut -= (myrinfo->ned - myrinfo->nid);
 
-        // printf("\nMoving node FROM %d to TO %d\n", from, to);
       }
       else { /* OMODE_BALANCE */
         for (k=myrinfo->nnbrs-1; k>=0; k--) {
@@ -3347,34 +3362,31 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
              (xgain+mynbrs[k].gv == 0 &&  mynbrs[k].ned-myrinfo->nid < 0))
            )
           continue;
-        compute_potential_move_volume_change(ctrl, graph, i);
         
         graph->pcutinfo[to].total_cut -= (2 * mynbrs[k].ned - myrinfo->nid - myrinfo->ned);
         graph->pcutinfo[from].total_cut -= (myrinfo->ned - myrinfo->nid);
       }
 
-    //   if (tmp_gain != graph->minvol - (xgain+mynbrs[k].gv)) {
-    //     printf("\nActual gain %d", xgain+mynbrs[k].gv);
-    //     printf("\nCalculated gain %d", -tmp_gain);
-    //     printf("\nVertex size %d", graph->vsize[i]);
-    //     printf("\nID %d, ED %d", myrinfo->nid, myrinfo->ned);
-    //     printf("\nFrom %d\tTo %d", from, to);
-    //     printf("\n\tGainlist val %d", ref_table[to].gain_list[to]);
-    //   }
-
       /*=====================================================================
       * If we got here, we can now move the vertex from 'from' to 'to'
       *======================================================================*/
-      printf("\nMOVED\n");
+    //   printf("\nMOVED\n");
       INC_DEC(pwgts[to], pwgts[from], vwgt);
       graph->mincut -= mynbrs[k].ned-myrinfo->nid;
       graph->minvol -= (xgain+mynbrs[k].gv);
       where[i] = to;
       nmoved++;
-      for (ind = 0; ind < nparts; ind++) {
-        mypinfo[ind].total_vol -= ref_table[ind].gain_list[to];
-        // printf("\nPartition %d\tVol: %d", ind, mypinfo[ind].total_vol);
+
+      for(ind=0; ind < myrinfo->nnbrs + 1; ind++) {
+        if(ind == 0) {
+            pid = from;
+        } else {
+            pid = mynbrs[ind - 1].pid;
+        }
+        mypinfo[pid].total_vol -= myrinfo->gain_table[ind * myrinfo->nnbrs + k];
       }
+        
+
     //   IFSET(ctrl->dbglvl, METIS_DBG_MOVEINFO,
     //       printf("\t\tMoving %6"PRIDX" from %3"PRIDX" to %3"PRIDX". "
     //              "Gain: [%4"PRIDX" %4"PRIDX"]. Cut: %6"PRIDX", Vol: %6"PRIDX"\n",
@@ -3466,10 +3478,10 @@ void compute_potential_move_volume_change (ctrl_t *ctrl, graph_t *graph, idx_t i
 
     ref_table = graph->vol_ref_table;
 
+    graph->pid_top_partition = 0;
+
     for (ind = 0; ind < nparts; ind++){
         memset(ref_table[ind].gain_list, 0, sizeof(idx_t)*nparts);
-        if(mypinfo[ind].total_vol > mypinfo[graph->pid_top_partition].total_vol)
-            graph->pid_top_partition = ind;
     }
     marker = ismalloc(nparts, -1, "Testing_vol: marker");
     /* Iterate neighboring nodes of i */
@@ -3509,9 +3521,11 @@ void compute_potential_move_volume_change (ctrl_t *ctrl, graph_t *graph, idx_t i
         }
     }
     vsize = (graph->vsize ? graph->vsize[i] : 1);
-
     for (ind=0; ind<myrinfo->nnbrs; ind++) {
+
         pid = mynbrs[ind].pid;
+        if(mypinfo[pid].total_vol > mypinfo[graph->pid_top_partition].total_vol)
+            graph->pid_top_partition = pid;
 
         ref_table[pid].gain_list[pid] -= myrinfo->nnbrs * vsize;
         ref_table[from].gain_list[pid] += myrinfo->nnbrs * vsize;
@@ -3521,6 +3535,5 @@ void compute_potential_move_volume_change (ctrl_t *ctrl, graph_t *graph, idx_t i
 
 
     }
-
     gk_free((void **)&marker, LTERM);
 }
