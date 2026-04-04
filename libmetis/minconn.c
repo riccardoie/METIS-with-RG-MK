@@ -667,8 +667,13 @@ void MoveGroupMinConnForVol(ctrl_t *ctrl, graph_t *graph, idx_t to, idx_t nind,
     }
 
     /* Update the id/ed/gains/bnd of potentially affected nodes */
-    KWayVolUpdate(ctrl, graph, i, from, to, NULL, NULL, NULL, NULL,
-        NULL, BNDTYPE_REFINE, vmarker, pmarker, modind);
+    if (ctrl->objtype == METIS_OBJTYPE_NVOL){
+        KWayNVolUpdate(ctrl, graph, i, from, to, NULL, NULL, NULL, NULL,
+            NULL, BNDTYPE_REFINE, vmarker, pmarker, modind);
+    } else {
+        KWayVolUpdate(ctrl, graph, i, from, to, NULL, NULL, NULL, NULL,
+            NULL, BNDTYPE_REFINE, vmarker, pmarker, modind);
+    }
 
     /*CheckKWayVolPartitionParams(ctrl, graph);*/
   }

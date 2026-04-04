@@ -154,8 +154,6 @@ void Greedy_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
          real_t ffactor, idx_t omode);
 void Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter, 
          real_t ffactor, idx_t omode);
-void Old_Refined_KWayCutOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter, 
-         real_t ffactor, idx_t omode);
 void Greedy_KWayVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter, 
          real_t ffactor, idx_t omode);
 void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter, 
@@ -167,6 +165,10 @@ void Greedy_McKWayVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 idx_t IsArticulationNode(idx_t i, idx_t *xadj, idx_t *adjncy, idx_t *where,
           idx_t *bfslvl, idx_t *bfsind, idx_t *bfsmrk);
 void KWayVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
+         idx_t to, ipq_t *queue, idx_t *vstatus, idx_t *r_nupd, idx_t *updptr,
+         idx_t *updind, idx_t bndtype, idx_t *vmarker, idx_t *pmarker,
+         idx_t *modind);
+void KWayNVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
          idx_t to, ipq_t *queue, idx_t *vstatus, idx_t *r_nupd, idx_t *updptr,
          idx_t *updind, idx_t bndtype, idx_t *vmarker, idx_t *pmarker,
          idx_t *modind);
