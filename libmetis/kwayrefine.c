@@ -278,7 +278,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
         for (i=0; i<nvtxs; i++) {
           me      = where[i];
           myrinfo = graph->vkrinfo+i;
-          myrinfo->gain_table = NULL;
+        //   myrinfo->gain_table = NULL;
           for (j=xadj[i]; j<xadj[i+1]; j++) {
             if (me == where[adjncy[j]])
               myrinfo->nid++;
@@ -341,7 +341,7 @@ void ComputeKWayPartitionParams(ctrl_t *ctrl, graph_t *graph)
           me      = where[i];
           myrinfo = graph->vkrinfo+i;
           marker[me] = i;
-          myrinfo->gain_table = NULL;
+        //   myrinfo->gain_table = NULL;
           for (j=xadj[i]; j<xadj[i+1]; j++) {
             k = where[adjncy[j]];
 
@@ -716,7 +716,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
           istart = xadj[i];
           iend   = xadj[i+1];
           myrinfo = graph->vkrinfo+i;
-          myrinfo->gain_table = NULL;
+        //   myrinfo->gain_table = NULL;
           marker[where[i]] = i;
           me = where[i];
           if (cmap[i] == 0) { /* Note that cmap[i] = crinfo[cmap[i]].ed */
@@ -799,7 +799,7 @@ void ProjectKWayPartition(ctrl_t *ctrl, graph_t *graph)
           istart = xadj[i];
           iend   = xadj[i+1];
           myrinfo = graph->vkrinfo+i;
-          myrinfo->gain_table = NULL;
+        //   myrinfo->gain_table = NULL;
 
           if (cmap[i] == 0) { /* Note that cmap[i] = crinfo[cmap[i]].ed */
             myrinfo->nid  = iend-istart;
@@ -941,7 +941,7 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
   idx_t i, ii, j, k, l, nvtxs, nparts, me, other, pid, index_nbr;
   idx_t *xadj, *vsize, *adjncy, *adjwgt, *where,
         *bndind, *bndptr, *ophtable;
-  idx_t *gain_table;
+//   idx_t *gain_table;
   vkrinfo_t *myrinfo, *orinfo;
   vnbr_t *mynbrs, *onbrs;
 
@@ -967,15 +967,15 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
     myrinfo     = graph->vkrinfo+i;
     myrinfo->gv = IDX_MIN;
     
-    if (myrinfo->gain_table != NULL) {
-        gk_free((void **)&myrinfo->gain_table, LTERM);
-    }
+    // if (myrinfo->gain_table != NULL) {
+    //     gk_free((void **)&myrinfo->gain_table, LTERM);
+    // }
     
     if (myrinfo->nnbrs > 0) {
       me     = where[i];
       mynbrs = ctrl->vnbrpool + myrinfo->inbr;
-      myrinfo->gain_table = ismalloc(myrinfo->nnbrs * (myrinfo->nnbrs + 1), 0,
-                            "ComputeKWayVolGains: gain table");
+    //   myrinfo->gain_table = ismalloc(myrinfo->nnbrs * (myrinfo->nnbrs + 1), 0,
+                            // "ComputeKWayVolGains: gain table");
       graph->minvol += myrinfo->nnbrs*vsize[i];
 
       for (j=xadj[i]; j<xadj[i+1]; j++) {
@@ -984,12 +984,12 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
         orinfo = graph->vkrinfo+ii;
         onbrs  = ctrl->vnbrpool + orinfo->inbr;
 
-        for (k=0; k<myrinfo->nnbrs; k++) {
-            if (mynbrs[k].pid == other) {
-                index_nbr = k;
-                break;
-            }
-        }
+        // for (k=0; k<myrinfo->nnbrs; k++) {
+        //     if (mynbrs[k].pid == other) {
+        //         index_nbr = k;
+        //         break;
+        //     }
+        // }
         
         for (k=0; k<orinfo->nnbrs; k++)
           ophtable[onbrs[k].pid] = k;
@@ -1001,7 +1001,7 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
           for (k=0; k<myrinfo->nnbrs; k++) {
             if (ophtable[mynbrs[k].pid] == -1){
               mynbrs[k].gv -= vsize[ii];
-              myrinfo->gain_table[k] -= vsize[ii];
+            //   myrinfo->gain_table[k] -= vsize[ii];
             }
           }
         }
@@ -1014,7 +1014,7 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
             for (k=0; k<myrinfo->nnbrs; k++) {
               if (ophtable[mynbrs[k].pid] != -1){
                 mynbrs[k].gv += vsize[ii];
-                myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] += vsize[ii];
+                // myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] += vsize[ii];
               }
             }
           }
@@ -1024,7 +1024,7 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
             for (k=0; k<myrinfo->nnbrs; k++) {
               if (ophtable[mynbrs[k].pid] == -1) {
                 mynbrs[k].gv -= vsize[ii];
-                myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] -= vsize[ii];
+                // myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] -= vsize[ii];
               }
             }
           }
@@ -1052,11 +1052,11 @@ void ComputeKWayVolGains(ctrl_t *ctrl, graph_t *graph)
         if (mynbrs[k].gv > myrinfo->gv)
           myrinfo->gv = mynbrs[k].gv;
 
-        myrinfo->gain_table[k] += myrinfo->nnbrs * vsize[i];
-        myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] -= myrinfo->nnbrs * vsize[i];
+        // myrinfo->gain_table[k] += myrinfo->nnbrs * vsize[i];
+        // myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] -= myrinfo->nnbrs * vsize[i];
         
-        if (myrinfo->nid == 0)
-            myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] += vsize[i];
+        // if (myrinfo->nid == 0)
+        //     myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] += vsize[i];
       }
 
       /* Add the extra gain due to id == 0 */

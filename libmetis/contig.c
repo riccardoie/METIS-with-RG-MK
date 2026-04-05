@@ -689,14 +689,9 @@ void MoveGroupContigForVol(ctrl_t *ctrl, graph_t *graph, idx_t to, idx_t gid,
     iaxpy(graph->ncon, -1, graph->vwgt+i*graph->ncon, 1, graph->pwgts+from*graph->ncon, 1);
 
     /* Update the id/ed/gains/bnd of potentially affected nodes */
-    if (ctrl->objtype == METIS_OBJTYPE_NVOL){
-        KWayNVolUpdate(ctrl, graph, i, from, to, NULL, NULL, NULL, NULL,
-            NULL, BNDTYPE_REFINE, vmarker, pmarker, modind);
-    } else {
-        KWayVolUpdate(ctrl, graph, i, from, to, NULL, NULL, NULL, NULL,
-            NULL, BNDTYPE_REFINE, vmarker, pmarker, modind);
-    }
-
+    KWayVolUpdate(ctrl, graph, i, from, to, NULL, NULL, NULL, NULL,
+        NULL, BNDTYPE_REFINE, vmarker, pmarker, modind);
+    
     /*CheckKWayVolPartitionParams(ctrl, graph);*/
   }
 

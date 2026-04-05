@@ -1987,434 +1987,434 @@ void KWayNVolUpdate(ctrl_t *ctrl, graph_t *graph, idx_t v, idx_t from,
          idx_t to, ipq_t *queue, idx_t *vstatus, idx_t *r_nupd, idx_t *updptr,
          idx_t *updind, idx_t bndtype, idx_t *vmarker, idx_t *pmarker,
          idx_t *modind)
-{
-  idx_t i, ii, iii, j, jj, k, kk, l, u, nmod, other, me, myidx;
-  idx_t index_nbr;  /* add this here */
-  idx_t *xadj, *vsize, *adjncy, *where;
-  vkrinfo_t *myrinfo, *orinfo;
-  vnbr_t *mynbrs, *onbrs;
+{}
+//   idx_t i, ii, iii, j, jj, k, kk, l, u, nmod, other, me, myidx;
+//   idx_t index_nbr;  /* add this here */
+//   idx_t *xadj, *vsize, *adjncy, *where;
+//   vkrinfo_t *myrinfo, *orinfo;
+//   vnbr_t *mynbrs, *onbrs;
 
-  xadj   = graph->xadj;
-  adjncy = graph->adjncy;
-  vsize  = graph->vsize;
-  where  = graph->where;
+//   xadj   = graph->xadj;
+//   adjncy = graph->adjncy;
+//   vsize  = graph->vsize;
+//   where  = graph->where;
 
-  myrinfo = graph->vkrinfo+v;
-  mynbrs  = ctrl->vnbrpool + myrinfo->inbr;
-
-
-  /*======================================================================
-   * Remove the contributions on the gain made by 'v'.
-   *=====================================================================*/
-  for (k=0; k<myrinfo->nnbrs; k++)
-    pmarker[mynbrs[k].pid] = k;
-  pmarker[from] = k;
-
-  myidx = pmarker[to];  /* Keep track of the index in mynbrs of the 'to' domain */
-
-  for (j=xadj[v]; j<xadj[v+1]; j++) {
-    ii     = adjncy[j];
-    other  = where[ii];
-    orinfo = graph->vkrinfo+ii;
-    onbrs  = ctrl->vnbrpool + orinfo->inbr;
-
-    if (other == from) {
-      for (k=0; k<orinfo->nnbrs; k++) {
-        if (pmarker[onbrs[k].pid] == -1)
-          onbrs[k].gv += vsize[v];
-      }
-    }
-    else {
-      ASSERT(pmarker[other] != -1);
-
-      if (mynbrs[pmarker[other]].ned > 1) {
-        for (k=0; k<orinfo->nnbrs; k++) {
-          if (pmarker[onbrs[k].pid] == -1)
-            onbrs[k].gv += vsize[v];
-        }
-      }
-      else { /* There is only one connection */
-        for (k=0; k<orinfo->nnbrs; k++) {
-          if (pmarker[onbrs[k].pid] != -1)
-            onbrs[k].gv -= vsize[v];
-        }
-      }
-    }
-  }
-
-  for (k=0; k<myrinfo->nnbrs; k++)
-    pmarker[mynbrs[k].pid] = -1;
-  pmarker[from] = -1;
+//   myrinfo = graph->vkrinfo+v;
+//   mynbrs  = ctrl->vnbrpool + myrinfo->inbr;
 
 
-  /*======================================================================
-   * Update the id/ed of vertex 'v'
-   *=====================================================================*/
-  if (myidx == -1) {
-    myidx = myrinfo->nnbrs++;
-    ASSERT(myidx < xadj[v+1]-xadj[v]);
-    mynbrs[myidx].ned = 0;
-  }
-  myrinfo->ned += myrinfo->nid-mynbrs[myidx].ned;
-  SWAP(myrinfo->nid, mynbrs[myidx].ned, j);
-  if (mynbrs[myidx].ned == 0)
-    mynbrs[myidx] = mynbrs[--myrinfo->nnbrs];
-  else
-    mynbrs[myidx].pid = from;
+//   /*======================================================================
+//    * Remove the contributions on the gain made by 'v'.
+//    *=====================================================================*/
+//   for (k=0; k<myrinfo->nnbrs; k++)
+//     pmarker[mynbrs[k].pid] = k;
+//   pmarker[from] = k;
+
+//   myidx = pmarker[to];  /* Keep track of the index in mynbrs of the 'to' domain */
+
+//   for (j=xadj[v]; j<xadj[v+1]; j++) {
+//     ii     = adjncy[j];
+//     other  = where[ii];
+//     orinfo = graph->vkrinfo+ii;
+//     onbrs  = ctrl->vnbrpool + orinfo->inbr;
+
+//     if (other == from) {
+//       for (k=0; k<orinfo->nnbrs; k++) {
+//         if (pmarker[onbrs[k].pid] == -1)
+//           onbrs[k].gv += vsize[v];
+//       }
+//     }
+//     else {
+//       ASSERT(pmarker[other] != -1);
+
+//       if (mynbrs[pmarker[other]].ned > 1) {
+//         for (k=0; k<orinfo->nnbrs; k++) {
+//           if (pmarker[onbrs[k].pid] == -1)
+//             onbrs[k].gv += vsize[v];
+//         }
+//       }
+//       else { /* There is only one connection */
+//         for (k=0; k<orinfo->nnbrs; k++) {
+//           if (pmarker[onbrs[k].pid] != -1)
+//             onbrs[k].gv -= vsize[v];
+//         }
+//       }
+//     }
+//   }
+
+//   for (k=0; k<myrinfo->nnbrs; k++)
+//     pmarker[mynbrs[k].pid] = -1;
+//   pmarker[from] = -1;
 
 
-  /*======================================================================
-   * Update the degrees of adjacent vertices and their volume gains
-   *=====================================================================*/
-  vmarker[v] = 1;
-  modind[0]  = v;
-  nmod       = 1;
-  for (j=xadj[v]; j<xadj[v+1]; j++) {
-    ii = adjncy[j];
-    me = where[ii];
-
-    if (!vmarker[ii]) {  /* The marking is done for boundary and max gv calculations */
-      vmarker[ii] = 2;
-    //   vmarker[ii] = 1;
-      modind[nmod++] = ii;
-    }
-
-    myrinfo = graph->vkrinfo+ii;
-    if (myrinfo->inbr == -1)
-      myrinfo->inbr = vnbrpoolGetNext(ctrl, xadj[ii+1]-xadj[ii]);
-    mynbrs = ctrl->vnbrpool + myrinfo->inbr;
-
-    if (me == from) {
-      INC_DEC(myrinfo->ned, myrinfo->nid, 1);
-    }
-    else if (me == to) {
-      INC_DEC(myrinfo->nid, myrinfo->ned, 1);
-    }
-
-    /* Remove the edgeweight from the 'pid == from' entry of the vertex */
-    if (me != from) {
-      for (k=0; k<myrinfo->nnbrs; k++) {
-        if (mynbrs[k].pid == from) {
-          if (mynbrs[k].ned == 1) {
-            mynbrs[k] = mynbrs[--myrinfo->nnbrs];
-            vmarker[ii] = 1;  /* You do a complete .gv calculation */
-
-            /* All vertices adjacent to 'ii' need to be updated */
-            for (jj=xadj[ii]; jj<xadj[ii+1]; jj++) {
-              u      = adjncy[jj];
-              other  = where[u];
-              orinfo = graph->vkrinfo+u;
-              onbrs  = ctrl->vnbrpool + orinfo->inbr;
-
-              for (kk=0; kk<orinfo->nnbrs; kk++) {
-                if (onbrs[kk].pid == from) {
-                  onbrs[kk].gv -= vsize[ii];
-                  if (!vmarker[u]) { /* Need to update boundary etc */
-                    vmarker[u]      = 2;
-                    // vmarker[u]      = 1;
-                    modind[nmod++] = u;
-                  }
-                  break;
-                }
-              }
-            }
-          }
-          else {
-            mynbrs[k].ned--;
-
-            /* Update the gv due to single 'ii' connection to 'from' */
-            if (mynbrs[k].ned == 1) {
-              /* find the vertex 'u' that 'ii' was connected into 'from' */
-              for (jj=xadj[ii]; jj<xadj[ii+1]; jj++) {
-                u     = adjncy[jj];
-                other = where[u];
-
-                if (other == from) {
-                  orinfo = graph->vkrinfo+u;
-                  onbrs  = ctrl->vnbrpool + orinfo->inbr;
-
-                  /* The following is correct because domains in common
-                     between ii and u will lead to a reduction over the
-                     previous gain, whereas domains only in u but not in
-                     ii, will lead to no change as opposed to the earlier
-                     increase */
-                  for (kk=0; kk<orinfo->nnbrs; kk++)
-                    onbrs[kk].gv += vsize[ii];
-
-                  if (!vmarker[u]) { /* Need to update boundary etc */
-                    vmarker[u]     = 2;
-                    // vmarker[u]     = 1;
-                    modind[nmod++] = u;
-                  }
-                  break;
-                }
-              }
-            }
-          }
-          break;
-        }
-      }
-    }
+//   /*======================================================================
+//    * Update the id/ed of vertex 'v'
+//    *=====================================================================*/
+//   if (myidx == -1) {
+//     myidx = myrinfo->nnbrs++;
+//     ASSERT(myidx < xadj[v+1]-xadj[v]);
+//     mynbrs[myidx].ned = 0;
+//   }
+//   myrinfo->ned += myrinfo->nid-mynbrs[myidx].ned;
+//   SWAP(myrinfo->nid, mynbrs[myidx].ned, j);
+//   if (mynbrs[myidx].ned == 0)
+//     mynbrs[myidx] = mynbrs[--myrinfo->nnbrs];
+//   else
+//     mynbrs[myidx].pid = from;
 
 
-    /* Add the edgeweight to the 'pid == to' entry of the vertex */
-    if (me != to) {
-      for (k=0; k<myrinfo->nnbrs; k++) {
-        if (mynbrs[k].pid == to) {
-          mynbrs[k].ned++;
+//   /*======================================================================
+//    * Update the degrees of adjacent vertices and their volume gains
+//    *=====================================================================*/
+//   vmarker[v] = 1;
+//   modind[0]  = v;
+//   nmod       = 1;
+//   for (j=xadj[v]; j<xadj[v+1]; j++) {
+//     ii = adjncy[j];
+//     me = where[ii];
 
-          /* Update the gv due to non-single 'ii' connection to 'to' */
-          if (mynbrs[k].ned == 2) {
-            /* find the vertex 'u' that 'ii' was connected into 'to' */
-            for (jj=xadj[ii]; jj<xadj[ii+1]; jj++) {
-              u     = adjncy[jj];
-              other = where[u];
+//     if (!vmarker[ii]) {  /* The marking is done for boundary and max gv calculations */
+//       vmarker[ii] = 2;
+//     //   vmarker[ii] = 1;
+//       modind[nmod++] = ii;
+//     }
 
-              if (u != v && other == to) {
-                orinfo = graph->vkrinfo+u;
-                onbrs  = ctrl->vnbrpool + orinfo->inbr;
-                for (kk=0; kk<orinfo->nnbrs; kk++)
-                  onbrs[kk].gv -= vsize[ii];
+//     myrinfo = graph->vkrinfo+ii;
+//     if (myrinfo->inbr == -1)
+//       myrinfo->inbr = vnbrpoolGetNext(ctrl, xadj[ii+1]-xadj[ii]);
+//     mynbrs = ctrl->vnbrpool + myrinfo->inbr;
 
-                if (!vmarker[u]) { /* Need to update boundary etc */
-                  vmarker[u]      = 2;
-                //   vmarker[u]     = 1;
-                  modind[nmod++] = u;
-                }
-                break;
-              }
-            }
-          }
-          break;
-        }
-      }
+//     if (me == from) {
+//       INC_DEC(myrinfo->ned, myrinfo->nid, 1);
+//     }
+//     else if (me == to) {
+//       INC_DEC(myrinfo->nid, myrinfo->ned, 1);
+//     }
 
-      if (k == myrinfo->nnbrs) {
-        mynbrs[myrinfo->nnbrs].pid   = to;
-        mynbrs[myrinfo->nnbrs++].ned = 1;
-        vmarker[ii] = 1;  /* You do a complete .gv calculation */
+//     /* Remove the edgeweight from the 'pid == from' entry of the vertex */
+//     if (me != from) {
+//       for (k=0; k<myrinfo->nnbrs; k++) {
+//         if (mynbrs[k].pid == from) {
+//           if (mynbrs[k].ned == 1) {
+//             mynbrs[k] = mynbrs[--myrinfo->nnbrs];
+//             vmarker[ii] = 1;  /* You do a complete .gv calculation */
 
-        /* All vertices adjacent to 'ii' need to be updated */
-        for (jj=xadj[ii]; jj<xadj[ii+1]; jj++) {
-          u      = adjncy[jj];
-          other  = where[u];
-          orinfo = graph->vkrinfo+u;
-          onbrs  = ctrl->vnbrpool + orinfo->inbr;
+//             /* All vertices adjacent to 'ii' need to be updated */
+//             for (jj=xadj[ii]; jj<xadj[ii+1]; jj++) {
+//               u      = adjncy[jj];
+//               other  = where[u];
+//               orinfo = graph->vkrinfo+u;
+//               onbrs  = ctrl->vnbrpool + orinfo->inbr;
 
-          for (kk=0; kk<orinfo->nnbrs; kk++) {
-            if (onbrs[kk].pid == to) {
-              onbrs[kk].gv += vsize[ii];
-              if (!vmarker[u]) { /* Need to update boundary etc */
-                vmarker[u] = 2;
-                // vmarker[u]     = 1;
-                modind[nmod++] = u;
-              }
-              break;
-            }
-          }
-        }
-      }
-    }
+//               for (kk=0; kk<orinfo->nnbrs; kk++) {
+//                 if (onbrs[kk].pid == from) {
+//                   onbrs[kk].gv -= vsize[ii];
+//                   if (!vmarker[u]) { /* Need to update boundary etc */
+//                     vmarker[u]      = 2;
+//                     // vmarker[u]      = 1;
+//                     modind[nmod++] = u;
+//                   }
+//                   break;
+//                 }
+//               }
+//             }
+//           }
+//           else {
+//             mynbrs[k].ned--;
 
-    ASSERT(myrinfo->nnbrs <= xadj[ii+1]-xadj[ii]);
-  }
+//             /* Update the gv due to single 'ii' connection to 'from' */
+//             if (mynbrs[k].ned == 1) {
+//               /* find the vertex 'u' that 'ii' was connected into 'from' */
+//               for (jj=xadj[ii]; jj<xadj[ii+1]; jj++) {
+//                 u     = adjncy[jj];
+//                 other = where[u];
 
+//                 if (other == from) {
+//                   orinfo = graph->vkrinfo+u;
+//                   onbrs  = ctrl->vnbrpool + orinfo->inbr;
 
-  /*======================================================================
-   * Add the contributions on the volume gain due to 'v'
-   *=====================================================================*/
-  myrinfo = graph->vkrinfo+v;
-  mynbrs  = ctrl->vnbrpool + myrinfo->inbr;
-  for (k=0; k<myrinfo->nnbrs; k++)
-    pmarker[mynbrs[k].pid] = k;
-  pmarker[to] = k;
+//                   /* The following is correct because domains in common
+//                      between ii and u will lead to a reduction over the
+//                      previous gain, whereas domains only in u but not in
+//                      ii, will lead to no change as opposed to the earlier
+//                      increase */
+//                   for (kk=0; kk<orinfo->nnbrs; kk++)
+//                     onbrs[kk].gv += vsize[ii];
 
-  for (j=xadj[v]; j<xadj[v+1]; j++) {
-    ii     = adjncy[j];
-    other  = where[ii];
-    orinfo = graph->vkrinfo+ii;
-    onbrs  = ctrl->vnbrpool + orinfo->inbr;
-
-    if (other == to) {
-      for (k=0; k<orinfo->nnbrs; k++) {
-        if (pmarker[onbrs[k].pid] == -1)
-          onbrs[k].gv -= vsize[v];
-      }
-    }
-    else {
-      ASSERT(pmarker[other] != -1);
-
-      if (mynbrs[pmarker[other]].ned > 1) {
-        for (k=0; k<orinfo->nnbrs; k++) {
-          if (pmarker[onbrs[k].pid] == -1)
-            onbrs[k].gv -= vsize[v];
-        }
-      }
-      else { /* There is only one connection */
-        for (k=0; k<orinfo->nnbrs; k++) {
-          if (pmarker[onbrs[k].pid] != -1)
-            onbrs[k].gv += vsize[v];
-        }
-      }
-    }
-  }
-  for (k=0; k<myrinfo->nnbrs; k++)
-    pmarker[mynbrs[k].pid] = -1;
-  pmarker[to] = -1;
+//                   if (!vmarker[u]) { /* Need to update boundary etc */
+//                     vmarker[u]     = 2;
+//                     // vmarker[u]     = 1;
+//                     modind[nmod++] = u;
+//                   }
+//                   break;
+//                 }
+//               }
+//             }
+//           }
+//           break;
+//         }
+//       }
+//     }
 
 
-  /*======================================================================
-   * Recompute the volume information of the 'hard' nodes, and update the
-   * max volume gain for all the modified vertices and the priority queue
-   *=====================================================================*/
-  for (iii=0; iii<nmod; iii++) {
-    i  = modind[iii];
-    me = where[i];
+//     /* Add the edgeweight to the 'pid == to' entry of the vertex */
+//     if (me != to) {
+//       for (k=0; k<myrinfo->nnbrs; k++) {
+//         if (mynbrs[k].pid == to) {
+//           mynbrs[k].ned++;
 
-    myrinfo = graph->vkrinfo+i;
-    mynbrs  = ctrl->vnbrpool + myrinfo->inbr;
+//           /* Update the gv due to non-single 'ii' connection to 'to' */
+//           if (mynbrs[k].ned == 2) {
+//             /* find the vertex 'u' that 'ii' was connected into 'to' */
+//             for (jj=xadj[ii]; jj<xadj[ii+1]; jj++) {
+//               u     = adjncy[jj];
+//               other = where[u];
 
-    if (vmarker[i] == 1) { 
-        /* Reallocate gain_table since nnbrs may have changed */
-        if (myrinfo->gain_table != NULL)
-            gk_free((void **)&myrinfo->gain_table, LTERM);
+//               if (u != v && other == to) {
+//                 orinfo = graph->vkrinfo+u;
+//                 onbrs  = ctrl->vnbrpool + orinfo->inbr;
+//                 for (kk=0; kk<orinfo->nnbrs; kk++)
+//                   onbrs[kk].gv -= vsize[ii];
+
+//                 if (!vmarker[u]) { /* Need to update boundary etc */
+//                   vmarker[u]      = 2;
+//                 //   vmarker[u]     = 1;
+//                   modind[nmod++] = u;
+//                 }
+//                 break;
+//               }
+//             }
+//           }
+//           break;
+//         }
+//       }
+
+//       if (k == myrinfo->nnbrs) {
+//         mynbrs[myrinfo->nnbrs].pid   = to;
+//         mynbrs[myrinfo->nnbrs++].ned = 1;
+//         vmarker[ii] = 1;  /* You do a complete .gv calculation */
+
+//         /* All vertices adjacent to 'ii' need to be updated */
+//         for (jj=xadj[ii]; jj<xadj[ii+1]; jj++) {
+//           u      = adjncy[jj];
+//           other  = where[u];
+//           orinfo = graph->vkrinfo+u;
+//           onbrs  = ctrl->vnbrpool + orinfo->inbr;
+
+//           for (kk=0; kk<orinfo->nnbrs; kk++) {
+//             if (onbrs[kk].pid == to) {
+//               onbrs[kk].gv += vsize[ii];
+//               if (!vmarker[u]) { /* Need to update boundary etc */
+//                 vmarker[u] = 2;
+//                 // vmarker[u]     = 1;
+//                 modind[nmod++] = u;
+//               }
+//               break;
+//             }
+//           }
+//         }
+//       }
+//     }
+
+//     ASSERT(myrinfo->nnbrs <= xadj[ii+1]-xadj[ii]);
+//   }
+
+
+//   /*======================================================================
+//    * Add the contributions on the volume gain due to 'v'
+//    *=====================================================================*/
+//   myrinfo = graph->vkrinfo+v;
+//   mynbrs  = ctrl->vnbrpool + myrinfo->inbr;
+//   for (k=0; k<myrinfo->nnbrs; k++)
+//     pmarker[mynbrs[k].pid] = k;
+//   pmarker[to] = k;
+
+//   for (j=xadj[v]; j<xadj[v+1]; j++) {
+//     ii     = adjncy[j];
+//     other  = where[ii];
+//     orinfo = graph->vkrinfo+ii;
+//     onbrs  = ctrl->vnbrpool + orinfo->inbr;
+
+//     if (other == to) {
+//       for (k=0; k<orinfo->nnbrs; k++) {
+//         if (pmarker[onbrs[k].pid] == -1)
+//           onbrs[k].gv -= vsize[v];
+//       }
+//     }
+//     else {
+//       ASSERT(pmarker[other] != -1);
+
+//       if (mynbrs[pmarker[other]].ned > 1) {
+//         for (k=0; k<orinfo->nnbrs; k++) {
+//           if (pmarker[onbrs[k].pid] == -1)
+//             onbrs[k].gv -= vsize[v];
+//         }
+//       }
+//       else { /* There is only one connection */
+//         for (k=0; k<orinfo->nnbrs; k++) {
+//           if (pmarker[onbrs[k].pid] != -1)
+//             onbrs[k].gv += vsize[v];
+//         }
+//       }
+//     }
+//   }
+//   for (k=0; k<myrinfo->nnbrs; k++)
+//     pmarker[mynbrs[k].pid] = -1;
+//   pmarker[to] = -1;
+
+
+//   /*======================================================================
+//    * Recompute the volume information of the 'hard' nodes, and update the
+//    * max volume gain for all the modified vertices and the priority queue
+//    *=====================================================================*/
+//   for (iii=0; iii<nmod; iii++) {
+//     i  = modind[iii];
+//     me = where[i];
+
+//     myrinfo = graph->vkrinfo+i;
+//     mynbrs  = ctrl->vnbrpool + myrinfo->inbr;
+
+//     if (vmarker[i] == 1) { 
+//         /* Reallocate gain_table since nnbrs may have changed */
+//         if (myrinfo->gain_table != NULL)
+//             gk_free((void **)&myrinfo->gain_table, LTERM);
         
-        myrinfo->gain_table = ismalloc(myrinfo->nnbrs * (myrinfo->nnbrs + 1), 0,
-                            "KWayVolUpdate: gain table");
-    } else {
-          /* nnbrs didn't change — just zero out existing buffer */
-        memset(myrinfo->gain_table, 0,
-            sizeof(idx_t) * myrinfo->nnbrs * (myrinfo->nnbrs + 1));
-    }
+//         myrinfo->gain_table = ismalloc(myrinfo->nnbrs * (myrinfo->nnbrs + 1), 0,
+//                             "KWayVolUpdate: gain table");
+//     } else {
+//           /* nnbrs didn't change — just zero out existing buffer */
+//         memset(myrinfo->gain_table, 0,
+//             sizeof(idx_t) * myrinfo->nnbrs * (myrinfo->nnbrs + 1));
+//     }
 
-    for (k=0; k<myrinfo->nnbrs; k++)
-        mynbrs[k].gv = 0;
+//     for (k=0; k<myrinfo->nnbrs; k++)
+//         mynbrs[k].gv = 0;
     
-    for (j=xadj[i]; j<xadj[i+1]; j++) {
-        ii     = adjncy[j];
-        other  = where[ii];
-        orinfo = graph->vkrinfo+ii;
-        onbrs  = ctrl->vnbrpool + orinfo->inbr;
+//     for (j=xadj[i]; j<xadj[i+1]; j++) {
+//         ii     = adjncy[j];
+//         other  = where[ii];
+//         orinfo = graph->vkrinfo+ii;
+//         onbrs  = ctrl->vnbrpool + orinfo->inbr;
 
-        index_nbr = -1;
-        for (kk=0; kk<myrinfo->nnbrs; kk++) {
-            if (mynbrs[kk].pid == other) {
-            index_nbr = kk;
-            break;
-            }
-        }
+//         index_nbr = -1;
+//         for (kk=0; kk<myrinfo->nnbrs; kk++) {
+//             if (mynbrs[kk].pid == other) {
+//             index_nbr = kk;
+//             break;
+//             }
+//         }
 
-        for (kk=0; kk<orinfo->nnbrs; kk++)
-            pmarker[onbrs[kk].pid] = kk;
-        pmarker[other] = 1;
+//         for (kk=0; kk<orinfo->nnbrs; kk++)
+//             pmarker[onbrs[kk].pid] = kk;
+//         pmarker[other] = 1;
 
-        if (me == other) {
-            /* Find which domains 'i' is connected and 'ii' is not and update their gain */
-            for (k=0; k<myrinfo->nnbrs; k++) {
-            if (pmarker[mynbrs[k].pid] == -1) {
-                mynbrs[k].gv -= vsize[ii];
-                myrinfo->gain_table[k] -= vsize[ii];
-            }
-            }
-        }
-        else {
-            ASSERT(pmarker[me] != -1 || index_nbr != -1);
+//         if (me == other) {
+//             /* Find which domains 'i' is connected and 'ii' is not and update their gain */
+//             for (k=0; k<myrinfo->nnbrs; k++) {
+//             if (pmarker[mynbrs[k].pid] == -1) {
+//                 mynbrs[k].gv -= vsize[ii];
+//                 myrinfo->gain_table[k] -= vsize[ii];
+//             }
+//             }
+//         }
+//         else {
+//             ASSERT(pmarker[me] != -1 || index_nbr != -1);
 
-            /* I'm the only connection of 'ii' in 'me' */
-            if (onbrs[pmarker[me]].ned == 1) {
-            /* Increase the gains for all the common domains between 'i' and 'ii' */
-            for (k=0; k<myrinfo->nnbrs; k++) {
-                if (pmarker[mynbrs[k].pid] != -1) {
-                mynbrs[k].gv += vsize[ii];
-                myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] += vsize[ii];
-                }
-            }
-            }
-            else {
-            /* Find which domains 'i' is connected and 'ii' is not and update their gain */
-            for (k=0; k<myrinfo->nnbrs; k++) {
-                if (pmarker[mynbrs[k].pid] == -1) {
-                mynbrs[k].gv -= vsize[ii];
-                myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] -= vsize[ii];
-                }
-            }
-            }
-        }
+//             /* I'm the only connection of 'ii' in 'me' */
+//             if (onbrs[pmarker[me]].ned == 1) {
+//             /* Increase the gains for all the common domains between 'i' and 'ii' */
+//             for (k=0; k<myrinfo->nnbrs; k++) {
+//                 if (pmarker[mynbrs[k].pid] != -1) {
+//                 mynbrs[k].gv += vsize[ii];
+//                 myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] += vsize[ii];
+//                 }
+//             }
+//             }
+//             else {
+//             /* Find which domains 'i' is connected and 'ii' is not and update their gain */
+//             for (k=0; k<myrinfo->nnbrs; k++) {
+//                 if (pmarker[mynbrs[k].pid] == -1) {
+//                 mynbrs[k].gv -= vsize[ii];
+//                 myrinfo->gain_table[(index_nbr + 1) * myrinfo->nnbrs + k] -= vsize[ii];
+//                 }
+//             }
+//             }
+//         }
 
-        for (kk=0; kk<orinfo->nnbrs; kk++)
-            pmarker[onbrs[kk].pid] = -1;
-        pmarker[other] = -1;
-    }
-    for (k=0; k<myrinfo->nnbrs; k++) {
-        myrinfo->gain_table[k] += myrinfo->nnbrs * vsize[i];
-        myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] -= myrinfo->nnbrs * vsize[i];
-    }
+//         for (kk=0; kk<orinfo->nnbrs; kk++)
+//             pmarker[onbrs[kk].pid] = -1;
+//         pmarker[other] = -1;
+//     }
+//     for (k=0; k<myrinfo->nnbrs; k++) {
+//         myrinfo->gain_table[k] += myrinfo->nnbrs * vsize[i];
+//         myrinfo->gain_table[(k + 1) * myrinfo->nnbrs + k] -= myrinfo->nnbrs * vsize[i];
+//     }
 
-    if (myrinfo->ned > 0 && myrinfo->nid == 0) {
-    for (k=0; k<myrinfo->nnbrs; k++)
-        myrinfo->gain_table[k] += vsize[i];
-    }
+//     if (myrinfo->ned > 0 && myrinfo->nid == 0) {
+//     for (k=0; k<myrinfo->nnbrs; k++)
+//         myrinfo->gain_table[k] += vsize[i];
+//     }
     
 
-    /* Compute the overall gv for that node */
-    myrinfo->gv = IDX_MIN;
-    for (k=0; k<myrinfo->nnbrs; k++) {
-      if (mynbrs[k].gv > myrinfo->gv)
-        myrinfo->gv = mynbrs[k].gv;
-    }
+//     /* Compute the overall gv for that node */
+//     myrinfo->gv = IDX_MIN;
+//     for (k=0; k<myrinfo->nnbrs; k++) {
+//       if (mynbrs[k].gv > myrinfo->gv)
+//         myrinfo->gv = mynbrs[k].gv;
+//     }
 
-    /* Add the xtra gain due to id == 0 */
-    if (myrinfo->ned > 0 && myrinfo->nid == 0)
-      myrinfo->gv += vsize[i];
-
-
-    /*======================================================================
-     * Maintain a consistent boundary
-     *=====================================================================*/
-    if (bndtype == BNDTYPE_REFINE) {
-      if (myrinfo->gv >= 0 && graph->bndptr[i] == -1)
-        BNDInsert(graph->nbnd, graph->bndind, graph->bndptr, i);
-
-      if (myrinfo->gv < 0 && graph->bndptr[i] != -1)
-        BNDDelete(graph->nbnd, graph->bndind, graph->bndptr, i);
-    }
-    else {
-      if (myrinfo->ned > 0 && graph->bndptr[i] == -1)
-        BNDInsert(graph->nbnd, graph->bndind, graph->bndptr, i);
-
-      if (myrinfo->ned == 0 && graph->bndptr[i] != -1)
-        BNDDelete(graph->nbnd, graph->bndind, graph->bndptr, i);
-    }
+//     /* Add the xtra gain due to id == 0 */
+//     if (myrinfo->ned > 0 && myrinfo->nid == 0)
+//       myrinfo->gv += vsize[i];
 
 
-    /*======================================================================
-     * Update the priority queue appropriately (if allowed)
-     *=====================================================================*/
-    if (queue != NULL) {
-      if (vstatus[i] != VPQSTATUS_EXTRACTED) {
-        if (graph->bndptr[i] != -1) { /* In-boundary vertex */
-          if (vstatus[i] == VPQSTATUS_PRESENT) {
-            ipqUpdate(queue, i, myrinfo->gv);
-          }
-          else {
-            ipqInsert(queue, i, myrinfo->gv);
-            vstatus[i] = VPQSTATUS_PRESENT;
-            ListInsert(*r_nupd, updind, updptr, i);
-          }
-        }
-        else { /* Off-boundary vertex */
-          if (vstatus[i] == VPQSTATUS_PRESENT) {
-            ipqDelete(queue, i);
-            vstatus[i] = VPQSTATUS_NOTPRESENT;
-            ListDelete(*r_nupd, updind, updptr, i);
-          }
-        }
-      }
-    }
+//     /*======================================================================
+//      * Maintain a consistent boundary
+//      *=====================================================================*/
+//     if (bndtype == BNDTYPE_REFINE) {
+//       if (myrinfo->gv >= 0 && graph->bndptr[i] == -1)
+//         BNDInsert(graph->nbnd, graph->bndind, graph->bndptr, i);
 
-    vmarker[i] = 0;
-  }
-}
+//       if (myrinfo->gv < 0 && graph->bndptr[i] != -1)
+//         BNDDelete(graph->nbnd, graph->bndind, graph->bndptr, i);
+//     }
+//     else {
+//       if (myrinfo->ned > 0 && graph->bndptr[i] == -1)
+//         BNDInsert(graph->nbnd, graph->bndind, graph->bndptr, i);
+
+//       if (myrinfo->ned == 0 && graph->bndptr[i] != -1)
+//         BNDDelete(graph->nbnd, graph->bndind, graph->bndptr, i);
+//     }
+
+
+//     /*======================================================================
+//      * Update the priority queue appropriately (if allowed)
+//      *=====================================================================*/
+//     if (queue != NULL) {
+//       if (vstatus[i] != VPQSTATUS_EXTRACTED) {
+//         if (graph->bndptr[i] != -1) { /* In-boundary vertex */
+//           if (vstatus[i] == VPQSTATUS_PRESENT) {
+//             ipqUpdate(queue, i, myrinfo->gv);
+//           }
+//           else {
+//             ipqInsert(queue, i, myrinfo->gv);
+//             vstatus[i] = VPQSTATUS_PRESENT;
+//             ListInsert(*r_nupd, updind, updptr, i);
+//           }
+//         }
+//         else { /* Off-boundary vertex */
+//           if (vstatus[i] == VPQSTATUS_PRESENT) {
+//             ipqDelete(queue, i);
+//             vstatus[i] = VPQSTATUS_NOTPRESENT;
+//             ListDelete(*r_nupd, updind, updptr, i);
+//           }
+//         }
+//       }
+//     }
+
+//     vmarker[i] = 0;
+//   }
+// }
 
 
 /*************************************************************************/
@@ -3177,8 +3177,6 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
   where  = graph->where;
   pwgts  = graph->pwgts;
 
-  ref_table = graph->vol_ref_table;
-
   nparts = ctrl->nparts;
   tpwgts = ctrl->tpwgts;
 
@@ -3330,12 +3328,12 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         candidate_top_vol = -1; /* Volume of greatest partition for the candidate destination */
         candidate_gain = 0;
 
-        graph->pid_top_partition = from;
-        for (ind=0; ind<myrinfo->nnbrs; ind++) {
-            pid = mynbrs[ind].pid;
-            if(mypinfo[pid].total_vol > mypinfo[graph->pid_top_partition].total_vol)
-                graph->pid_top_partition = pid;
-        }
+        // graph->pid_top_partition = from;
+        // for (ind=0; ind<myrinfo->nnbrs; ind++) {
+        //     pid = mynbrs[ind].pid;
+        //     if(mypinfo[pid].total_vol > mypinfo[graph->pid_top_partition].total_vol)
+        //         graph->pid_top_partition = pid;
+        // }
 
         // printf("\nNew approach (%d)", myrinfo->nnbrs);
         // printf("\n[");
@@ -3346,7 +3344,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         // }
         // printf("]");
 
-        // compute_potential_move_volume_change(ctrl, graph, i);
+        compute_potential_move_volume_change(ctrl, graph, i);
         // printf("\nGain Table");
         // for (ind = 0; ind < nparts; ind++) {
         //     printf("\nPid %d [ ", ind);
@@ -3361,6 +3359,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         // printf("\n");
         for (ind=0; ind<myrinfo->nnbrs; ind++) {
             j = mynbrs[ind].pid;
+
             for(row=0; row < myrinfo->nnbrs + 1; row++) {
                 if(row == 0) {
                     pid = from;
@@ -3368,13 +3367,13 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
                     pid = mynbrs[row - 1].pid;
                 }
 
-                if (tmp_top_vol < mypinfo[pid].total_vol - myrinfo->gain_table[row * myrinfo->nnbrs + ind]) {
-                    tmp_top_vol = mypinfo[pid].total_vol - myrinfo->gain_table[row * myrinfo->nnbrs + ind];
+                if (tmp_top_vol < mypinfo[pid].total_vol - ref_table[pid].gain_list[j]) {
+                    tmp_top_vol = mypinfo[pid].total_vol - ref_table[pid].gain_list[j];
                     tmp_top_pid = pid;
                 }
-                gain += myrinfo->gain_table[row * myrinfo->nnbrs + ind];
+                gain += ref_table[pid].gain_list[j];
             }
-
+            // printf("\nTMP TOP VOL %d, PsID %d", tmp_top_vol, tmp_top_pid);
             if (to == -1 &&
                 mypinfo[graph->pid_top_partition].total_vol >= tmp_top_vol &&
                 pwgts[j]+vwgt <= maxpwgts[j] + ffactor*gain) {
@@ -3429,6 +3428,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
             tmp_top_vol = -1;
             tmp_top_pid = -1;
             gain = 0;
+            // printf("\nTO %d", to);
         }
 
         if (to == -1)
@@ -3442,6 +3442,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
       }
       else { /* OMODE_BALANCE */
+        // printf("\nBalancing");
         for (k=myrinfo->nnbrs-1; k>=0; k--) {
           if (!safetos[to=mynbrs[k].pid])
             continue;
@@ -3466,6 +3467,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
            )
           continue;
         
+        compute_potential_move_volume_change(ctrl, graph, i);
         graph->pcutinfo[to].total_cut -= (2 * mynbrs[k].ned - myrinfo->nid - myrinfo->ned);
         graph->pcutinfo[from].total_cut -= (myrinfo->ned - myrinfo->nid);
       }
@@ -3486,7 +3488,8 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         } else {
             pid = mynbrs[ind - 1].pid;
         }
-        mypinfo[pid].total_vol -= myrinfo->gain_table[ind * myrinfo->nnbrs + k];
+        mypinfo[pid].total_vol -= ref_table[pid].gain_list[to];
+        // printf("\nPartition %d\tVol: %d", pid, mypinfo[pid].total_vol);
       }
         
 
@@ -3512,7 +3515,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       }
 
       /* Update the id/ed/gains/bnd/queue of potentially affected nodes */
-      KWayNVolUpdate(ctrl, graph, i, from, to, queue, vstatus, &nupd, updptr,
+      KWayVolUpdate(ctrl, graph, i, from, to, queue, vstatus, &nupd, updptr,
           updind, bndtype, vmarker, pmarker, modind);
 
       /*CheckKWayVolPartitionParams(ctrl, graph); */
@@ -3551,7 +3554,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         if (res < mypinfo[pid].total_vol)
             res = mypinfo[pid].total_vol;
     }
-    printf("\nMAX vol %d\n", res);
+    printf("\nMAX vol %d", res);
     printf("\nEND OF REFINEMENT\n");
   }
   ipqDestroy(queue);
@@ -3581,7 +3584,7 @@ void compute_potential_move_volume_change (ctrl_t *ctrl, graph_t *graph, idx_t i
 
     ref_table = graph->vol_ref_table;
 
-    graph->pid_top_partition = 0;
+    graph->pid_top_partition = where[i];
 
     for (ind = 0; ind < nparts; ind++){
         memset(ref_table[ind].gain_list, 0, sizeof(idx_t)*nparts);
