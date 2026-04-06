@@ -3222,12 +3222,13 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
         idx_t tmp_top_vol = -1; /* Actual volume after move */
         idx_t candidate_top_pid = -1; /* Pid of greatest partition for the candidate destination */
         idx_t candidate_top_vol = -1; /* Volume of greatest partition for the candidate destination */
+        idx_t candidate_gain = 0;
 
         for (ind=myrinfo->nnbrs-1; ind>=0; ind--) {
             j = mynbrs[ind].pid;
             for(int pid = 0; pid < nparts; pid++) {
-                if (tmp_top_vol < mypinfo[pid].total_vol + ref_table[pid].gain_list[j]) {
-                    tmp_top_vol = mypinfo[pid].total_vol + ref_table[pid].gain_list[j];
+                if (tmp_top_vol < mypinfo[pid].total_vol - ref_table[pid].gain_list[j]) {
+                    tmp_top_vol = mypinfo[pid].total_vol - ref_table[pid].gain_list[j];
                     tmp_top_pid = pid;
                 }
                 gain += ref_table[pid].gain_list[j];
@@ -3237,29 +3238,56 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
             if (to == -1 &&
                 mypinfo[graph->pid_top_partition].total_vol >= tmp_top_vol &&
-                pwgts[j]+vwgt <= maxpwgts[j] - ffactor*gain) {
+                pwgts[j]+vwgt <= maxpwgts[j] + ffactor*gain) {
                 to = j;
                 k = ind;
                 candidate_top_pid = tmp_top_pid;
                 candidate_top_vol = tmp_top_vol;
+                candidate_gain = gain;
                 // printf("\nChose %d as candidate destination vol %d\n", j, tmp_top_vol);
 
             } else if (to != -1 &&
                        candidate_top_vol > tmp_top_vol &&
-                       pwgts[j]+vwgt <= maxpwgts[j]) {
+                       pwgts[j]+vwgt <= maxpwgts[j] + ffactor*gain) {
                 to = j;
                 k = ind;
                 candidate_top_pid = tmp_top_pid;
                 candidate_top_vol = tmp_top_vol;
+                candidate_gain = gain;
                 // printf("\nChose %d as candidate destination vol %d\n", j, tmp_top_vol);
 
+            }  else if (to != -1 &&
+                       candidate_top_vol == tmp_top_vol &&
+                       mynbrs[k].ned < mynbrs[ind].ned &&
+                       pwgts[j]+vwgt <= maxpwgts[j] + ffactor*gain) {
+                to = j;
+                k = ind;
+                candidate_top_pid = tmp_top_pid;
+                candidate_top_vol = tmp_top_vol;
+                candidate_gain = gain;
+                // printf("\nChose %d as candidate destination vol %d\n", j, tmp_top_vol);
+                        
+            } else if (to != -1 &&
+                       candidate_top_vol == tmp_top_vol &&
+                       gain >  candidate_gain &&
+                       pwgts[j]+vwgt <= maxpwgts[j] + ffactor*gain) {
+                to = j;
+                k = ind;
+                candidate_top_pid = tmp_top_pid;
+                candidate_top_vol = tmp_top_vol;
+                candidate_gain = gain;
+                // printf("\nChose %d as candidate destination vol %d\n", j, tmp_top_vol);
+                        
             } else if (to != -1 &&
                        candidate_top_vol == tmp_top_vol &&      /* If we improve the balance from previous candidate prioritize this move */
+                       (mynbrs[k].ned == mynbrs[ind].ned ||
+                       candidate_gain == gain) &&
                        tpwgts[to]*pwgts[j] < tpwgts[j]*pwgts[to]) {
                 to = j;
                 k = ind;
                 candidate_top_pid = tmp_top_pid;
                 candidate_top_vol = tmp_top_vol;
+                candidate_gain = gain;
                 // printf("\nChose %d as candidate destination(better balance) vol %d\n", j, tmp_top_vol);
             }
 
@@ -3329,7 +3357,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
       where[i] = to;
       nmoved++;
       for (ind = 0; ind < nparts; ind++) {
-        mypinfo[ind].total_vol += ref_table[ind].gain_list[to];
+        mypinfo[ind].total_vol -= ref_table[ind].gain_list[to];
         // printf("\nPartition %d\tVol: %d", ind, mypinfo[ind].total_vol);
       }
     //   IFSET(ctrl->dbglvl, METIS_DBG_MOVEINFO,
@@ -3831,9 +3859,11 @@ void compute_potential_move_volume_change (ctrl_t *ctrl, graph_t *graph, idx_t i
 
     for (ind = 0; ind < nparts; ind++){
         memset(ref_table[ind].gain_list, 0, sizeof(idx_t)*nparts);
+        if(mypinfo[ind].total_vol > mypinfo[graph->pid_top_partition].total_vol)
+            graph->pid_top_partition = ind;
     }
 
-    marker = ismalloc(nparts, 0, "Testing_vol: marker");
+    marker = ismalloc(nparts, -1, "Testing_vol: marker");
     /* Iterate neighboring nodes of i */
     for (j=xadj[i]; j<xadj[i+1]; j++) {
         ii     = adjncy[j];
@@ -3842,57 +3872,71 @@ void compute_potential_move_volume_change (ctrl_t *ctrl, graph_t *graph, idx_t i
         onbrs  = ctrl->vnbrpool + orinfo->inbr;
         vsize = (graph->vsize ? graph->vsize[ii] : 1);
 
-        memset(marker, 0, sizeof(idx_t)*nparts);
+        memset(marker, -1, sizeof(idx_t)*nparts);
 
+        for (ind = 0; ind < orinfo->nnbrs; ind++) {
+            marker[onbrs[ind].pid] = ind;
+        }
+        marker[other] = 1;
+        
         if (other == from ){
             /* Find all connections from "from" to other partitions */
-            for (ind = orinfo->nnbrs - 1; ind >= 0; ind--) {
-                marker[onbrs[ind].pid] = 1;
-            }
 
-            for (ind=myrinfo->nnbrs-1; ind>=0; ind--) {
+            for (ind = 0; ind < orinfo->nnbrs; ind++) {
                 pid = mynbrs[ind].pid;
 
-                if (marker[pid] != 1)
-                    ref_table[from].gain_list[pid] += vsize;
+                if (marker[pid] == -1)
+                    ref_table[from].gain_list[pid] -= vsize;
             }
 
         } else {
             /* Mark all connection node ii has to other partitions */
             /* Not using nnbrs here because the number of edges to each partition is relevant. */
-            for (f=xadj[ii]; f<xadj[ii+1]; f++) {
-                marker[where[adjncy[f]]] += 1;
-            }
-            for (ind = 0; ind < nparts; ind++) {
+            // for (f=xadj[ii]; f<xadj[ii+1]; f++) {
+            //     marker[where[adjncy[f]]] += 1;
+            // }
+            // for (ind = 0; ind < nparts; ind++) {
 
-                if(mypinfo[ind].total_vol > mypinfo[graph->pid_top_partition].total_vol)
-                    graph->pid_top_partition = ind;
-
-                /* No changes to apply when visiting 'from' partition */
-                if (ind == from)
-                    continue;
-
-                /* When visiting own partition handle like if it were destination */
-                if (ind == other) {
-                    if  (marker[from] == 1)
-                        ref_table[other].gain_list[other] -= vsize;
-                } else {    /* All other cases handle ind as destination partition */
-                    if (marker[from] == 1 && marker[ind] > 0)
-                        ref_table[other].gain_list[ind] -= vsize;
-                    else if (marker[from] > 1 && marker[ind] == 0)
-                        ref_table[other].gain_list[ind] += vsize;
+                
+            if(onbrs[marker[from]].ned == 1) {
+                for (ind=0; ind<myrinfo->nnbrs; ind++) {
+                    pid = mynbrs[ind].pid;
+                    if (marker[pid] != -1)
+                        ref_table[other].gain_list[pid] += vsize;
                 }
+            } else {
+                for (ind=0; ind<myrinfo->nnbrs; ind++) {
+                    pid = mynbrs[ind].pid;
+                    if (marker[pid] == -1)
+                        ref_table[other].gain_list[pid] -= vsize;
+                }
+
+                // /* When visiting own partition handle like if it were destination */
+                // if (ind == other) {
+                //     if  (marker[from] == 1)
+                //         ref_table[other].gain_list[other] += vsize;
+                // } else {    /* All other cases handle ind as destination partition */
+                //     if (marker[from] == 1 && marker[ind] > 0)
+                //         ref_table[other].gain_list[ind] += vsize;
+                //     else if (marker[from] > 1 && marker[ind] == 0)
+                //         ref_table[other].gain_list[ind] -= vsize;
+                // }
+                // }
             }
         }
     }
     vsize = (graph->vsize ? graph->vsize[i] : 1);
-    for (ind = 0; ind < nparts; ind++) {
-        if (ind != from) {
-            ref_table[ind].gain_list[ind] += myrinfo->nnbrs * vsize;
-            ref_table[from].gain_list[ind] -= myrinfo->nnbrs * vsize;
-        }
-        if (myrinfo->nid == 0 && ind != from)
-            ref_table[ind].gain_list[ind] -= vsize;
+    // for (ind = 0; ind < nparts; ind++) {
+    for (ind=0; ind < myrinfo->nnbrs; ind++) {
+        pid = mynbrs[ind].pid;
+        
+        // if(mypinfo[pid].total_vol > mypinfo[graph->pid_top_partition].total_vol)
+        //     graph->pid_top_partition = pid;
+        ref_table[pid].gain_list[pid] -= myrinfo->nnbrs * vsize;
+        ref_table[from].gain_list[pid] += myrinfo->nnbrs * vsize;
+
+        if (myrinfo->nid == 0)
+            ref_table[pid].gain_list[pid] += vsize;
     }
 
     gk_free((void **)&marker, LTERM);
