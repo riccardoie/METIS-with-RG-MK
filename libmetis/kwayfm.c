@@ -3376,7 +3376,7 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
             // printf("\nTMP TOP VOL %d, PsID %d", tmp_top_vol, tmp_top_pid);
             if (to == -1 &&
                 mypinfo[graph->pid_top_partition].total_vol >= tmp_top_vol &&
-                pwgts[j]+vwgt <= maxpwgts[j] + ffactor*gain) {
+                pwgts[j]+vwgt <= maxpwgts[j] + ffactor*ref_table[tmp_top_pid].gain_list[j]) {
                 to = j;
                 k = ind;
                 candidate_top_pid = tmp_top_pid;
@@ -3385,36 +3385,23 @@ void Greedy_KWayNVolOptimize(ctrl_t *ctrl, graph_t *graph, idx_t niter,
 
             } else if (to != -1 &&
                        candidate_top_vol > tmp_top_vol &&
-                       pwgts[j]+vwgt <= maxpwgts[j] + ffactor*gain) {
+                       pwgts[j]+vwgt <= maxpwgts[j] + ffactor*ref_table[tmp_top_pid].gain_list[j]) {
                 to = j;
                 k = ind;
                 candidate_top_pid = tmp_top_pid;
                 candidate_top_vol = tmp_top_vol;
                 candidate_gain = gain;
             } else if (to != -1 &&
-                    candidate_top_vol == tmp_top_vol &&      /* Top volume is unchanged then we prefer higher gain moves */
-                    candidate_gain < gain &&
-                    pwgts[j]+vwgt <= maxpwgts[j]) {
+                     candidate_top_vol == tmp_top_vol &&      /* Top volume and gain is the same, then prioritize nodes with greater ed */
+                     mynbrs[k].ned < mynbrs[ind].ned &&
+                     pwgts[j]+vwgt <= maxpwgts[j] + ffactor*ref_table[tmp_top_pid].gain_list[j]) {
                 to = j;
                 k = ind;
                 candidate_top_pid = tmp_top_pid;
                 candidate_top_vol = tmp_top_vol;
                 candidate_gain = gain;
-
             } else if (to != -1 &&
-                       candidate_top_vol == tmp_top_vol &&      /* Top volume and gain is the same, then prioritize nodes with greater ed */
-                       candidate_gain == gain &&
-                        mynbrs[k].ned < mynbrs[ind].ned &&
-                       pwgts[j]+vwgt <= maxpwgts[j]) {
-                to = j;
-                k = ind;
-                candidate_top_pid = tmp_top_pid;
-                candidate_top_vol = tmp_top_vol;
-                candidate_gain = gain;
-            } 
-            else if (to != -1 &&
                        candidate_top_vol == tmp_top_vol &&      /* If we improve the balance from previous candidate prioritize this move */
-                       candidate_gain == gain &&
                        mynbrs[k].ned == mynbrs[ind].ned &&
                        tpwgts[to]*pwgts[j] < tpwgts[j]*pwgts[to]) {
                 to = j;
@@ -3588,6 +3575,8 @@ void compute_potential_move_volume_change (ctrl_t *ctrl, graph_t *graph, idx_t i
 
     for (ind = 0; ind < nparts; ind++){
         memset(ref_table[ind].gain_list, 0, sizeof(idx_t)*nparts);
+        if(mypinfo[ind].total_vol > mypinfo[graph->pid_top_partition].total_vol)
+            graph->pid_top_partition = ind;
     }
     marker = ismalloc(nparts, -1, "Testing_vol: marker");
     /* Iterate neighboring nodes of i */
@@ -3630,8 +3619,8 @@ void compute_potential_move_volume_change (ctrl_t *ctrl, graph_t *graph, idx_t i
     for (ind=0; ind<myrinfo->nnbrs; ind++) {
 
         pid = mynbrs[ind].pid;
-        if(mypinfo[pid].total_vol > mypinfo[graph->pid_top_partition].total_vol)
-            graph->pid_top_partition = pid;
+        // if(mypinfo[pid].total_vol > mypinfo[graph->pid_top_partition].total_vol)
+        //     graph->pid_top_partition = pid;
 
         ref_table[pid].gain_list[pid] -= myrinfo->nnbrs * vsize;
         ref_table[from].gain_list[pid] += myrinfo->nnbrs * vsize;
